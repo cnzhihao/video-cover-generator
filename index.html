@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>视频封面生成器</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <div>
+            <h1>视频封面生成器</h1>
+            <p>16:9 / 4:3 / 3:4 多比例封面</p>
+          </div>
+        </div>
+        <div class="type-switch" role="radiogroup" aria-label="视频类型">
+          <button class="type-button is-active" data-type="talking-head" type="button">口播</button>
+          <button class="type-button" data-type="weekly" type="button">周报</button>
+          <button class="type-button" data-type="tutorial" type="button">系列教程</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="panel form-panel">
+          <section class="field-group">
+            <label class="field-label" for="imageInput">参考图</label>
+            <label class="upload-box" for="imageInput">
+              <input id="imageInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" />
+              <span class="upload-icon">+</span>
+              <span id="uploadText">上传 PNG / JPG / WEBP</span>
+            </label>
+            <p class="message" id="message" aria-live="polite"></p>
+          </section>
+
+          <section class="field-group">
+            <label class="field-label" for="titleInput">主标题</label>
+            <textarea id="titleInput" maxlength="60" rows="3" placeholder="请输入主标题">用一个系统跑通内容生产</textarea>
+          </section>
+
+          <section class="field-group">
+            <label class="field-label" for="subtitleInput">副标题</label>
+            <textarea id="subtitleInput" maxlength="100" rows="3" placeholder="请输入副标题">从选题到发布的可复用工作流</textarea>
+          </section>
+
+          <section class="field-group" id="weekField" hidden>
+            <label class="field-label" for="weekInput">周标识</label>
+            <input id="weekInput" maxlength="20" type="text" value="2026-06-W3" placeholder="2026-06-W3" />
+          </section>
+
+          <section class="field-group controls">
+            <div class="control-row">
+              <label for="scaleInput">图片缩放</label>
+              <output id="scaleOutput">1.00</output>
+            </div>
+            <input id="scaleInput" type="range" min="0.7" max="1.8" step="0.01" value="1" />
+
+            <div class="control-row">
+              <label for="offsetXInput">横向位置</label>
+              <output id="offsetXOutput">0</output>
+            </div>
+            <input id="offsetXInput" type="range" min="-300" max="300" step="1" value="0" />
+
+            <div class="control-row">
+              <label for="offsetYInput">纵向位置</label>
+              <output id="offsetYOutput">0</output>
+            </div>
+            <input id="offsetYInput" type="range" min="-300" max="300" step="1" value="0" />
+
+            <div class="button-row">
+              <button id="resetImageButton" class="secondary-button" type="button">重置图片位置</button>
+              <button id="safeAreaButton" class="secondary-button" type="button" aria-pressed="false">显示安全区</button>
+            </div>
+          </section>
+        </aside>
+
+        <section class="editor-panel">
+          <div class="editor-head">
+            <div>
+              <h2>当前主画布</h2>
+              <p id="activeLayoutLabel">16:9 · 1440 × 810</p>
+            </div>
+            <div class="layout-tabs" role="tablist" aria-label="当前画布比例">
+              <button class="layout-tab is-active" data-layout="16x9" type="button">16:9</button>
+              <button class="layout-tab" data-layout="4x3" type="button">4:3</button>
+              <button class="layout-tab" data-layout="3x4" type="button">3:4</button>
+            </div>
+          </div>
+          <div class="canvas-stage">
+            <canvas id="mainCanvas" width="1440" height="810"></canvas>
+            <div id="emptyState" class="empty-state">
+              <strong>上传参考图后开始生成</strong>
+              <span>标题、位置和缩放会实时更新到三种比例</span>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel preview-panel">
+          <div class="preview-card is-active" data-layout="16x9">
+            <div class="preview-meta">
+              <strong>16:9</strong>
+              <span>1440 × 810</span>
+            </div>
+            <canvas id="preview16x9" width="1440" height="810"></canvas>
+          </div>
+          <div class="preview-card" data-layout="4x3">
+            <div class="preview-meta">
+              <strong>4:3</strong>
+              <span>1440 × 1080</span>
+            </div>
+            <canvas id="preview4x3" width="1440" height="1080"></canvas>
+          </div>
+          <div class="preview-card" data-layout="3x4">
+            <div class="preview-meta">
+              <strong>3:4</strong>
+              <span>1080 × 1440</span>
+            </div>
+            <canvas id="preview3x4" width="1080" height="1440"></canvas>
+          </div>
+        </aside>
+      </main>
+
+      <footer class="export-bar">
+        <button id="downloadCombinedButton" class="primary-button" type="button" disabled>导出拼接长图</button>
+        <button id="download16x9Button" class="secondary-button" type="button" disabled>下载 16:9</button>
+        <button id="download4x3Button" class="secondary-button" type="button" disabled>下载 4:3</button>
+        <button id="download3x4Button" class="secondary-button" type="button" disabled>下载 3:4</button>
+      </footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
