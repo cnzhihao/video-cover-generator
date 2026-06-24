@@ -51,6 +51,16 @@
           </section>
 
           <section class="field-group controls">
+            <div class="adjust-head">
+              <span>图片调整</span>
+              <strong id="adjustLayoutLabel">当前：16:9</strong>
+            </div>
+            <div class="adjust-layouts" role="tablist" aria-label="图片调整比例">
+              <button class="adjust-layout-button is-active" data-layout="16x9" type="button">16:9</button>
+              <button class="adjust-layout-button" data-layout="4x3" type="button">4:3</button>
+              <button class="adjust-layout-button" data-layout="3x4" type="button">3:4</button>
+            </div>
+
             <div class="control-row">
               <label for="scaleInput">图片缩放</label>
               <output id="scaleOutput">1.00</output>
@@ -61,16 +71,16 @@
               <label for="offsetXInput">横向位置</label>
               <output id="offsetXOutput">0</output>
             </div>
-            <input id="offsetXInput" type="range" min="-300" max="300" step="1" value="0" />
+            <input id="offsetXInput" type="range" min="-1500" max="1500" step="1" value="0" />
 
             <div class="control-row">
               <label for="offsetYInput">纵向位置</label>
               <output id="offsetYOutput">0</output>
             </div>
-            <input id="offsetYInput" type="range" min="-300" max="300" step="1" value="0" />
+            <input id="offsetYInput" type="range" min="-1500" max="1500" step="1" value="0" />
 
             <div class="button-row">
-              <button id="resetImageButton" class="secondary-button" type="button">重置图片位置</button>
+              <button id="resetImageButton" class="secondary-button" type="button">重置当前比例</button>
               <button id="safeAreaButton" class="secondary-button" type="button" aria-pressed="false">显示安全区</button>
             </div>
           </section>

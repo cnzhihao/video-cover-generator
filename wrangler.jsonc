@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "video-cover-generator",
+  "compatibility_date": "2026-06-24",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": ".deploy"
+  },
+  "routes": [
+    {
+      "pattern": "video-cover-generator.fhxqtech.com",
+      "custom_domain": true
+    }
+  ],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}

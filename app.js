@@ -1,4 +1,23 @@
 const fontFamily = `Inter, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Arial, sans-serif`;
+const weeklyDefaultImageSrc = "assets/weekly-sticker.png";
+const weeklyImageCacheKey = "video-cover-generator.weekly-image";
+const defaultImageStatesByType = {
+  "talking-head": {
+    "16x9": { scale: 1, offsetX: 0, offsetY: 0 },
+    "4x3": { scale: 1, offsetX: 0, offsetY: 0 },
+    "3x4": { scale: 1, offsetX: 0, offsetY: 0 },
+  },
+  weekly: {
+    "16x9": { scale: 1, offsetX: 186, offsetY: -160 },
+    "4x3": { scale: 1, offsetX: 246, offsetY: 193 },
+    "3x4": { scale: 1, offsetX: 288, offsetY: -300 },
+  },
+  tutorial: {
+    "16x9": { scale: 1, offsetX: 0, offsetY: 0 },
+    "4x3": { scale: 1, offsetX: 0, offsetY: 0 },
+    "3x4": { scale: 1, offsetX: 0, offsetY: 0 },
+  },
+};
 
 const layoutBase = {
   "16x9": { key: "16x9", label: "16:9", width: 1440, height: 810 },
@@ -11,23 +30,24 @@ const layouts = {
     "16x9": {
       ...layoutBase["16x9"],
       mode: "horizontal",
-      foreground: { centerX: 0.72, centerY: 0.5, widthRatio: 0.52, heightRatio: 1.08 },
-      textBox: { x: 0.06, y: 0.18, width: 0.44, height: 0.58 },
-      gradient: { type: "left-to-right", startOpacity: 0.78, midOpacity: 0.55, endOpacity: 0, endPosition: 0.68 },
+      imageBox: { x: 0.5, y: 0, width: 0.5, height: 1 },
+      textBox: { x: 0.06, y: 0.19, width: 0.59, height: 0.56 },
+      mask: { solidUntil: 0.5, fadeUntil: 0.6 },
     },
     "4x3": {
       ...layoutBase["4x3"],
       mode: "horizontal",
-      foreground: { centerX: 0.72, centerY: 0.52, widthRatio: 0.56, heightRatio: 1.08 },
-      textBox: { x: 0.07, y: 0.17, width: 0.46, height: 0.58 },
-      gradient: { type: "left-to-right", startOpacity: 0.76, midOpacity: 0.55, endOpacity: 0, endPosition: 0.62 },
+      imageBox: { x: 0.5, y: 0, width: 0.5, height: 1 },
+      textBox: { x: 0.07, y: 0.2, width: 0.58, height: 0.54 },
+      mask: { solidUntil: 0.5, fadeUntil: 0.6 },
     },
     "3x4": {
       ...layoutBase["3x4"],
       mode: "vertical",
-      foreground: { centerX: 0.5, centerY: 0.38, widthRatio: 1.08, heightRatio: 0.82 },
-      textBox: { x: 0.08, y: 0.76, width: 0.84, height: 0.2 },
-      gradient: { type: "bottom-to-top", startOpacity: 0.78, midOpacity: 0.55, endOpacity: 0, endPosition: 0.58 },
+      imageBox: { x: 0, y: 0, width: 1, height: 1 },
+      subjectBox: { x: 0, y: 0, width: 1, height: 0.6 },
+      textBox: { x: 0.08, y: 0.68, width: 0.84, height: 0.24 },
+      mask: { fadeStart: 0.4, fadeEnd: 1 },
     },
   },
   weekly: {
@@ -36,21 +56,21 @@ const layouts = {
       headerBox: { x: 0.07, y: 0.09, width: 0.45, height: 0.16 },
       titleBox: { x: 0.07, y: 0.31, width: 0.66, height: 0.34 },
       subtitleBox: { x: 0.07, y: 0.66, width: 0.58, height: 0.12 },
-      avatarBox: { x: 0.74, y: 0.47, width: 0.22, height: 0.42 },
+      avatarBox: { x: 0.63, y: 0.26, width: 0.33, height: 0.63 },
     },
     "4x3": {
       ...layoutBase["4x3"],
       headerBox: { x: 0.08, y: 0.08, width: 0.55, height: 0.15 },
       titleBox: { x: 0.08, y: 0.29, width: 0.72, height: 0.34 },
       subtitleBox: { x: 0.08, y: 0.64, width: 0.62, height: 0.12 },
-      avatarBox: { x: 0.68, y: 0.56, width: 0.26, height: 0.35 },
+      avatarBox: { x: 0.55, y: 0.385, width: 0.39, height: 0.525 },
     },
     "3x4": {
       ...layoutBase["3x4"],
       headerBox: { x: 0.08, y: 0.07, width: 0.72, height: 0.13 },
       titleBox: { x: 0.08, y: 0.27, width: 0.78, height: 0.34 },
       subtitleBox: { x: 0.08, y: 0.61, width: 0.72, height: 0.14 },
-      avatarBox: { x: 0.58, y: 0.67, width: 0.34, height: 0.25 },
+      avatarBox: { x: 0.41, y: 0.545, width: 0.51, height: 0.375 },
     },
   },
   tutorial: {
@@ -77,10 +97,19 @@ const state = {
   activeLayout: "16x9",
   image: null,
   imageName: "",
+  imagesByType: {
+    "talking-head": { image: null, name: "" },
+    weekly: { image: null, name: "" },
+    tutorial: { image: null, name: "" },
+  },
   title: "用一个系统跑通内容生产",
   subtitle: "从选题到发布的可复用工作流",
   weekLabel: "2026-06-W3",
-  imageState: { scale: 1, offsetX: 0, offsetY: 0 },
+  imageStates: {
+    "talking-head": {},
+    weekly: {},
+    tutorial: {},
+  },
   showSafeArea: false,
 };
 
@@ -103,6 +132,7 @@ const els = {
   mainCanvas: document.querySelector("#mainCanvas"),
   emptyState: document.querySelector("#emptyState"),
   activeLayoutLabel: document.querySelector("#activeLayoutLabel"),
+  adjustLayoutLabel: document.querySelector("#adjustLayoutLabel"),
   preview16x9: document.querySelector("#preview16x9"),
   preview4x3: document.querySelector("#preview4x3"),
   preview3x4: document.querySelector("#preview3x4"),
@@ -117,6 +147,24 @@ const previewCanvases = {
   "4x3": els.preview4x3,
   "3x4": els.preview3x4,
 };
+
+function defaultImageState(type = state.type, layoutKey = state.activeLayout) {
+  return { ...(defaultImageStatesByType[type]?.[layoutKey] || { scale: 1, offsetX: 0, offsetY: 0 }) };
+}
+
+function getImageState(layoutKey, type = state.type) {
+  if (!state.imageStates[type]) {
+    state.imageStates[type] = {};
+  }
+  if (!state.imageStates[type][layoutKey]) {
+    state.imageStates[type][layoutKey] = defaultImageState(type, layoutKey);
+  }
+  return state.imageStates[type][layoutKey];
+}
+
+function getActiveImageState() {
+  return getImageState(state.activeLayout, state.type);
+}
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -133,7 +181,7 @@ function rectFromRatio(layout, box) {
 }
 
 function splitTextTokens(text) {
-  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  const normalized = String(text || "").replace(/\r\n?/g, "\n").replace(/[^\S\n]+/g, " ").trim();
   const tokens = [];
   let buffer = "";
 
@@ -150,13 +198,19 @@ function splitTextTokens(text) {
         buffer = "";
       }
       tokens.push(" ");
+    } else if (char === "\n") {
+      if (buffer) {
+        tokens.push(buffer);
+        buffer = "";
+      }
+      tokens.push("\n");
     } else {
       buffer += char;
     }
   }
 
   if (buffer) tokens.push(buffer);
-  return tokens.filter((token, index, arr) => token !== " " || (index > 0 && arr[index - 1] !== " "));
+  return tokens.filter((token, index, arr) => token !== " " || (index > 0 && arr[index - 1] !== " " && arr[index - 1] !== "\n"));
 }
 
 function wrapText(ctx, text, maxWidth, maxLines) {
@@ -165,6 +219,12 @@ function wrapText(ctx, text, maxWidth, maxLines) {
   let line = "";
 
   tokens.forEach((token) => {
+    if (token === "\n") {
+      lines.push(line.trim());
+      line = "";
+      return;
+    }
+
     const probe = line + token;
     if (ctx.measureText(probe).width <= maxWidth || !line) {
       line = probe;
@@ -213,6 +273,216 @@ function drawTextLines(ctx, lines, x, y, size, lineHeight, color) {
   ctx.fillStyle = color;
   lines.forEach((line, index) => {
     ctx.fillText(line, x, y + index * size * lineHeight);
+  });
+}
+
+function parseRichText(text) {
+  const source = String(text || "");
+  const parts = [];
+  let inverted = false;
+  let buffer = "";
+
+  for (const char of source) {
+    if (char === "`") {
+      if (buffer) {
+        parts.push({ text: buffer, inverted });
+        buffer = "";
+      }
+      inverted = !inverted;
+      continue;
+    }
+    buffer += char;
+  }
+
+  if (buffer) parts.push({ text: buffer, inverted });
+  return parts;
+}
+
+function splitRichTextTokens(text) {
+  const normalized = String(text || "").replace(/\r\n?/g, "\n").replace(/[^\S\n]+/g, " ");
+  const tokens = [];
+  let buffer = "";
+
+  for (const char of normalized) {
+    if (/[\u4e00-\u9fa5]/.test(char)) {
+      if (buffer) {
+        tokens.push(buffer);
+        buffer = "";
+      }
+      tokens.push(char);
+    } else if (char === " ") {
+      if (buffer) {
+        tokens.push(buffer);
+        buffer = "";
+      }
+      tokens.push(" ");
+    } else if (char === "\n") {
+      if (buffer) {
+        tokens.push(buffer);
+        buffer = "";
+      }
+      tokens.push("\n");
+    } else {
+      buffer += char;
+    }
+  }
+
+  if (buffer) tokens.push(buffer);
+  return tokens.filter((token, index, arr) => token !== " " || (arr[index - 1] !== " " && arr[index - 1] !== "\n"));
+}
+
+function richTextTokens(text) {
+  return parseRichText(text).flatMap((part) => {
+    if (part.inverted) {
+      return String(part.text || "")
+        .replace(/\r\n?/g, "\n")
+        .split("\n")
+        .flatMap((segment, index, arr) => {
+          const label = segment.replace(/\s+/g, " ").trim();
+          const tokens = label ? [{ text: label, inverted: true }] : [];
+          if (index < arr.length - 1) tokens.push({ text: "\n", inverted: false });
+          return tokens;
+        });
+    }
+
+    return splitRichTextTokens(part.text).map((token) => ({ text: token, inverted: false }));
+  });
+}
+
+function lineWidth(ctx, line) {
+  return line.reduce((width, token) => width + ctx.measureText(token.text).width, 0);
+}
+
+function trimRichLineEnd(line) {
+  const trimmed = [...line];
+  while (trimmed.length && trimmed[trimmed.length - 1].text === " ") {
+    trimmed.pop();
+  }
+  return trimmed;
+}
+
+function trimRichLineStart(line) {
+  const trimmed = [...line];
+  while (trimmed.length && trimmed[0].text === " ") {
+    trimmed.shift();
+  }
+  return trimmed;
+}
+
+function truncateRichLine(ctx, line, maxWidth) {
+  const ellipsis = { text: "...", inverted: false };
+  const truncated = trimRichLineEnd(line);
+
+  while (truncated.length && lineWidth(ctx, [...truncated, ellipsis]) > maxWidth) {
+    const last = truncated[truncated.length - 1];
+    if (last.text.length > 1) {
+      last.text = last.text.slice(0, -1);
+    } else {
+      truncated.pop();
+    }
+  }
+
+  truncated.push(ellipsis);
+  return truncated;
+}
+
+function wrapRichText(ctx, text, maxWidth, maxLines, truncate = true) {
+  const tokens = richTextTokens(text);
+  const lines = [];
+  let line = [];
+
+  tokens.forEach((token) => {
+    if (token.text === "\n") {
+      lines.push(trimRichLineEnd(line));
+      line = [];
+      return;
+    }
+
+    if (!line.length && token.text === " ") return;
+    const nextLine = [...line, token];
+    if (lineWidth(ctx, nextLine) <= maxWidth || !line.length) {
+      line = nextLine;
+      return;
+    }
+
+    lines.push(trimRichLineEnd(line));
+    line = token.text === " " ? [] : [token];
+  });
+
+  if (line.length) lines.push(trimRichLineEnd(line));
+  const normalized = lines.map(trimRichLineStart).filter((item, index, arr) => item.length || (index > 0 && index < arr.length - 1));
+
+  if (!truncate) {
+    return normalized;
+  }
+
+  if (normalized.length > maxLines) {
+    const kept = normalized.slice(0, maxLines);
+    kept[kept.length - 1] = truncateRichLine(ctx, kept[kept.length - 1], maxWidth);
+    return kept;
+  }
+
+  return normalized;
+}
+
+function fitRichText(ctx, text, options) {
+  const { maxWidth, maxHeight, maxLines, maxSize, minSize, weight, lineHeight } = options;
+  let size = maxSize;
+  let lines = [];
+
+  while (size >= minSize) {
+    setFont(ctx, size, weight);
+    lines = wrapRichText(ctx, text, maxWidth, maxLines, false);
+    const height = lines.length * size * lineHeight;
+    if (lines.length <= maxLines && height <= maxHeight) break;
+    size -= 2;
+  }
+
+  setFont(ctx, size, weight);
+  lines = wrapRichText(ctx, text, maxWidth, maxLines, true);
+
+  return { size, lines };
+}
+
+function drawRichTextLines(ctx, lines, x, y, size, lineHeight, color) {
+  const bgPadX = Math.max(8, size * 0.1);
+  const bgPadY = Math.max(4, size * 0.08);
+  const bgHeight = size + bgPadY * 2;
+  const bgTopOffset = size * 0.88 + bgPadY;
+
+  lines.forEach((line, lineIndex) => {
+    const baseline = y + lineIndex * size * lineHeight;
+    let cursor = x;
+    let runStart = null;
+    let runWidth = 0;
+
+    line.forEach((token) => {
+      const tokenWidth = ctx.measureText(token.text).width;
+      if (token.inverted) {
+        if (runStart === null) runStart = cursor;
+        runWidth += tokenWidth;
+      } else if (runStart !== null) {
+        roundedRectPath(ctx, runStart - bgPadX, baseline - bgTopOffset, runWidth + bgPadX * 2, bgHeight, Math.max(2, size * 0.04));
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        runStart = null;
+        runWidth = 0;
+      }
+      cursor += tokenWidth;
+    });
+
+    if (runStart !== null) {
+      roundedRectPath(ctx, runStart - bgPadX, baseline - bgTopOffset, runWidth + bgPadX * 2, bgHeight, Math.max(2, size * 0.04));
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+    }
+
+    cursor = x;
+    line.forEach((token) => {
+      ctx.fillStyle = token.inverted ? "#050505" : color;
+      ctx.fillText(token.text, cursor, baseline);
+      cursor += ctx.measureText(token.text).width;
+    });
   });
 }
 
@@ -310,73 +580,74 @@ function renderTalkingHead(ctx, layout, data) {
   const { image, imageState, title, subtitle } = data;
   fillBase(ctx, layout);
 
-  ctx.save();
-  ctx.filter = "blur(32px) brightness(70%) saturate(55%) contrast(90%)";
-  drawImageCover(ctx, image, -50, -50, layout.width + 100, layout.height + 100);
-  ctx.restore();
-
-  const foreground = layout.foreground;
-  const fw = layout.width * foreground.widthRatio;
-  const fh = layout.height * foreground.heightRatio;
-  const fx = layout.width * foreground.centerX - fw / 2;
-  const fy = layout.height * foreground.centerY - fh / 2;
-
-  ctx.save();
   if (layout.mode === "horizontal") {
-    const fade = ctx.createLinearGradient(fx, 0, fx + fw * 0.35, 0);
-    fade.addColorStop(0, "rgba(0,0,0,0)");
-    fade.addColorStop(1, "rgba(0,0,0,1)");
-    ctx.fillStyle = fade;
-    ctx.fillRect(fx, fy, fw, fh);
+    const imageBox = rectFromRatio(layout, layout.imageBox);
+    drawImageCover(ctx, image, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageState.offsetX, imageState.offsetY, imageState.scale);
+
+    const solidX = layout.width * layout.mask.solidUntil;
+    const fadeX = layout.width * layout.mask.fadeUntil;
+    ctx.fillStyle = "#050505";
+    ctx.fillRect(0, 0, solidX, layout.height);
+
+    const mask = ctx.createLinearGradient(solidX, 0, fadeX, 0);
+    mask.addColorStop(0, "rgba(5,5,5,1)");
+    mask.addColorStop(1, "rgba(5,5,5,0)");
+    ctx.fillStyle = mask;
+    ctx.fillRect(solidX, 0, fadeX - solidX, layout.height);
+  } else {
+    const imageBox = rectFromRatio(layout, layout.imageBox);
+    drawImageCover(ctx, image, imageBox.x, imageBox.y, imageBox.w, imageBox.h, imageState.offsetX, imageState.offsetY, imageState.scale);
+
+    const fadeStart = layout.height * layout.mask.fadeStart;
+    const fadeEnd = layout.height * layout.mask.fadeEnd;
+    const mask = ctx.createLinearGradient(0, fadeStart, 0, fadeEnd);
+    mask.addColorStop(0, "rgba(5,5,5,0)");
+    mask.addColorStop(1, "rgba(5,5,5,1)");
+    ctx.fillStyle = mask;
+    ctx.fillRect(0, fadeStart, layout.width, fadeEnd - fadeStart);
   }
-  drawImageCover(ctx, image, fx, fy, fw, fh, imageState.offsetX, imageState.offsetY, imageState.scale);
-  ctx.restore();
-
-  const g = layout.gradient;
-  const gradient = g.type === "bottom-to-top"
-    ? ctx.createLinearGradient(0, layout.height, 0, layout.height * (1 - g.endPosition))
-    : ctx.createLinearGradient(0, 0, layout.width * g.endPosition, 0);
-  gradient.addColorStop(0, `rgba(0,0,0,${g.startOpacity})`);
-  gradient.addColorStop(0.55, `rgba(0,0,0,${g.midOpacity})`);
-  gradient.addColorStop(1, `rgba(0,0,0,${g.endOpacity})`);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, layout.width, layout.height);
-
-  const vignette = ctx.createRadialGradient(layout.width / 2, layout.height / 2, layout.width * 0.2, layout.width / 2, layout.height / 2, layout.width * 0.74);
-  vignette.addColorStop(0, "rgba(0,0,0,0)");
-  vignette.addColorStop(1, "rgba(0,0,0,0.4)");
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, layout.width, layout.height);
 
   const box = rectFromRatio(layout, layout.textBox);
   const pad = layout.width * 0.01;
-  const titleFit = fitText(ctx, title || "请输入主标题", {
+  const titleLineHeight = layout.mode === "vertical" ? 1.3 : 1.38;
+  const subLineHeight = 1.48;
+  const textGap = layout.height * (layout.mode === "vertical" ? 0.06 : 0.075);
+  const hasSubtitle = Boolean(String(subtitle || "").trim());
+  const titleFit = fitRichText(ctx, title || "请输入主标题", {
     maxWidth: box.w - pad * 2,
-    maxHeight: box.h * 0.62,
-    maxLines: 2,
+    maxHeight: box.h * 0.7,
+    maxLines: 3,
     maxSize: layout.mode === "vertical" ? 92 : 96,
     minSize: 42,
     weight: 900,
-    lineHeight: 1.06,
+    lineHeight: titleLineHeight,
   });
-  const subFit = fitText(ctx, subtitle || "请输入副标题", {
+  const subFit = hasSubtitle ? fitRichText(ctx, subtitle, {
     maxWidth: box.w - pad * 2,
-    maxHeight: box.h * 0.3,
+    maxHeight: box.h * 0.24,
     maxLines: 2,
     maxSize: Math.round(titleFit.size * 0.42),
     minSize: 28,
     weight: 700,
-    lineHeight: 1.25,
-  });
+    lineHeight: subLineHeight,
+  }) : { size: 0, lines: [] };
 
   ctx.shadowColor = "rgba(0,0,0,0.45)";
   ctx.shadowBlur = 20;
   ctx.shadowOffsetY = 6;
+  const titleBlockHeight = titleFit.lines.length * titleFit.size * titleLineHeight;
+  const subBlockHeight = subFit.lines.length * subFit.size * subLineHeight;
+  const totalTextHeight = titleBlockHeight + (hasSubtitle ? textGap + subBlockHeight : 0);
+  const textStartY = layout.mode === "horizontal"
+    ? box.y + (box.h - totalTextHeight) / 2
+    : box.y;
   setFont(ctx, titleFit.size, 900);
-  drawTextLines(ctx, titleFit.lines, box.x + pad, box.y + titleFit.size, titleFit.size, 1.06, "#ffffff");
-  setFont(ctx, subFit.size, 700);
-  const subY = box.y + titleFit.lines.length * titleFit.size * 1.06 + subFit.size + layout.height * 0.035;
-  drawTextLines(ctx, subFit.lines, box.x + pad, subY, subFit.size, 1.25, "rgba(255,255,255,0.82)");
+  drawRichTextLines(ctx, titleFit.lines, box.x + pad, textStartY + titleFit.size, titleFit.size, titleLineHeight, "#ffffff");
+  if (hasSubtitle) {
+    setFont(ctx, subFit.size, 700);
+    const subY = textStartY + titleBlockHeight + textGap + subFit.size;
+    drawRichTextLines(ctx, subFit.lines, box.x + pad, subY, subFit.size, subLineHeight, "rgba(255,255,255,0.82)");
+  }
   ctx.shadowColor = "transparent";
 }
 
@@ -413,41 +684,50 @@ function renderWeekly(ctx, layout, data) {
   const subtitleBox = rectFromRatio(layout, layout.subtitleBox);
   const avatar = rectFromRatio(layout, layout.avatarBox);
   const titleSize = clamp(layout.width * 0.076, 72, 118);
+  const headerSize = layout.key === "3x4" ? titleSize * 1.5 : titleSize;
 
-  setFont(ctx, Math.round(titleSize * 0.31), 800);
+  setFont(ctx, Math.round(headerSize * 0.31), 800);
   ctx.fillStyle = "rgba(255,255,255,0.72)";
-  drawLetterSpacedText(ctx, "OPC WEEKLY", header.x, header.y + titleSize * 0.28, Math.max(5, layout.width * 0.004));
+  drawLetterSpacedText(ctx, "OPC WEEKLY", header.x, header.y + headerSize * 0.28, Math.max(5, layout.width * 0.004));
 
-  setFont(ctx, Math.round(titleSize * 0.5), 900);
+  setFont(ctx, Math.round(headerSize * 0.5), 900);
   ctx.fillStyle = "#ffffff";
-  ctx.fillText(weekLabel || "2026-06-W3", header.x, header.y + titleSize * 0.82);
+  ctx.fillText(weekLabel || "2026-06-W3", header.x, header.y + headerSize * 0.82);
 
-  const mainFit = fitText(ctx, title || "请输入主标题", {
+  const titleLineHeight = 1.15;
+  const subLineHeight = 1.3;
+  const textGap = layout.height * 0.075;
+  const hasSubtitle = Boolean(String(subtitle || "").trim());
+  const mainFit = fitRichText(ctx, title || "请输入主标题", {
     maxWidth: titleBox.w,
     maxHeight: titleBox.h,
     maxLines: 2,
     maxSize: Math.round(titleSize),
     minSize: 46,
     weight: 900,
-    lineHeight: 1.04,
+    lineHeight: titleLineHeight,
   });
   setFont(ctx, mainFit.size, 900);
   ctx.shadowColor = "rgba(0,0,0,0.35)";
   ctx.shadowBlur = 16;
   ctx.shadowOffsetY = 6;
-  drawTextLines(ctx, mainFit.lines, titleBox.x, titleBox.y + mainFit.size, mainFit.size, 1.04, "#ffffff");
+  drawRichTextLines(ctx, mainFit.lines, titleBox.x, titleBox.y + mainFit.size, mainFit.size, titleLineHeight, "#ffffff");
 
-  const subFit = fitText(ctx, subtitle || "请输入副标题", {
+  const titleBlockHeight = mainFit.lines.length * mainFit.size * titleLineHeight;
+  const subFit = hasSubtitle ? fitRichText(ctx, subtitle, {
     maxWidth: subtitleBox.w,
     maxHeight: subtitleBox.h,
     maxLines: 2,
     maxSize: Math.round(mainFit.size * 0.42),
     minSize: 28,
     weight: 700,
-    lineHeight: 1.2,
-  });
-  setFont(ctx, subFit.size, 700);
-  drawTextLines(ctx, subFit.lines, subtitleBox.x, subtitleBox.y + subFit.size, subFit.size, 1.2, "rgba(255,255,255,0.78)");
+    lineHeight: subLineHeight,
+  }) : { size: 0, lines: [] };
+  if (hasSubtitle) {
+    setFont(ctx, subFit.size, 700);
+    const subY = titleBox.y + titleBlockHeight + textGap + subFit.size;
+    drawRichTextLines(ctx, subFit.lines, titleBox.x, subY, subFit.size, subLineHeight, "rgba(255,255,255,0.78)");
+  }
   ctx.shadowColor = "transparent";
 
   ctx.save();
@@ -499,7 +779,55 @@ function renderTutorial(ctx, layout, data) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  const panel = rectFromRatio(layout, layout.textPanel);
+  const panelSeed = rectFromRatio(layout, layout.textPanel);
+  const panelInset = Math.max(18, layout.width * 0.018);
+  const panelX = Math.max(panelSeed.x, shot.x + panelInset);
+  const panelMaxW = Math.max(260, shot.x + shot.w - panelX - panelInset);
+  const padX = Math.min(layout.width * 0.035, 48);
+  const padY = Math.min(layout.height * 0.055, 48);
+  const titleLineHeight = 1.06;
+  const subLineHeight = 1.22;
+  const textGap = layout.height * 0.075;
+  const hasSubtitle = Boolean(String(subtitle || "").trim());
+  const titleFit = fitRichText(ctx, title || "请输入主标题", {
+    maxWidth: panelMaxW - padX * 2,
+    maxHeight: shot.h * (hasSubtitle ? 0.42 : 0.58),
+    maxLines: 2,
+    maxSize: layout.key === "3x4" ? 72 : 76,
+    minSize: 34,
+    weight: 900,
+    lineHeight: titleLineHeight,
+  });
+  const subFit = hasSubtitle ? fitRichText(ctx, subtitle, {
+    maxWidth: panelMaxW - padX * 2,
+    maxHeight: shot.h * 0.24,
+    maxLines: 2,
+    maxSize: Math.round(titleFit.size * 0.42),
+    minSize: 24,
+    weight: 700,
+    lineHeight: subLineHeight,
+  }) : { size: 0, lines: [] };
+  const getRichLinesWidth = (lines, size, weight) => {
+    setFont(ctx, size, weight);
+    return lines.reduce((max, line) => Math.max(max, lineWidth(ctx, line)), 0);
+  };
+  const titleTextW = getRichLinesWidth(titleFit.lines, titleFit.size, 900);
+  const subTextW = getRichLinesWidth(subFit.lines, subFit.size, 700);
+  const panelW = clamp(Math.ceil(Math.max(titleTextW, subTextW) + padX * 2), 260, panelMaxW);
+  const titleBlockHeight = titleFit.lines.length * titleFit.size * titleLineHeight;
+  const subBlockHeight = subFit.lines.length * subFit.size * subLineHeight;
+  const textBlockHeight = titleBlockHeight + (hasSubtitle ? textGap + subBlockHeight : 0);
+  const panelH = Math.min(Math.ceil(textBlockHeight + padY * 2), shot.h - panelInset * 2);
+  const panel = {
+    x: panelX,
+    y: layout.key === "3x4"
+      ? panelSeed.y
+      : shot.y + (shot.h - panelH) / 2,
+    w: panelW,
+    h: panelH,
+    radius: panelSeed.radius,
+  };
+
   ctx.save();
   ctx.shadowColor = "rgba(0,0,0,0.48)";
   ctx.shadowBlur = 32;
@@ -512,32 +840,15 @@ function renderTutorial(ctx, layout, data) {
   ctx.stroke();
   ctx.restore();
 
-  const pad = Math.min(panel.w * 0.08, 40);
-  const titleFit = fitText(ctx, title || "请输入主标题", {
-    maxWidth: panel.w - pad * 2,
-    maxHeight: panel.h * 0.58,
-    maxLines: 2,
-    maxSize: layout.key === "3x4" ? 72 : 76,
-    minSize: 34,
-    weight: 900,
-    lineHeight: 1.06,
-  });
-  const subFit = fitText(ctx, subtitle || "请输入副标题", {
-    maxWidth: panel.w - pad * 2,
-    maxHeight: panel.h * 0.28,
-    maxLines: 2,
-    maxSize: Math.round(titleFit.size * 0.42),
-    minSize: 24,
-    weight: 700,
-    lineHeight: 1.22,
-  });
-
   setFont(ctx, titleFit.size, 900);
-  const startY = panel.y + pad + titleFit.size;
-  drawTextLines(ctx, titleFit.lines, panel.x + pad, startY, titleFit.size, 1.06, "#ffffff");
-  setFont(ctx, subFit.size, 700);
-  const subY = startY + titleFit.lines.length * titleFit.size * 1.06 + subFit.size * 0.72;
-  drawTextLines(ctx, subFit.lines, panel.x + pad, subY, subFit.size, 1.22, "rgba(255,255,255,0.8)");
+  const textStartY = panel.y + (panel.h - textBlockHeight) / 2;
+  const startY = textStartY + titleFit.size;
+  drawRichTextLines(ctx, titleFit.lines, panel.x + padX, startY, titleFit.size, titleLineHeight, "#ffffff");
+  if (hasSubtitle) {
+    setFont(ctx, subFit.size, 700);
+    const subY = textStartY + titleBlockHeight + textGap + subFit.size;
+    drawRichTextLines(ctx, subFit.lines, panel.x + padX, subY, subFit.size, subLineHeight, "rgba(255,255,255,0.8)");
+  }
 }
 
 function drawSafeAreas(ctx, layout) {
@@ -558,13 +869,7 @@ function drawSafeAreas(ctx, layout) {
 
   if (state.type === "talking-head") {
     drawBox(layout.textBox, "文字安全区", "rgba(45,212,191,0.85)");
-    const fg = layout.foreground;
-    drawBox({
-      x: fg.centerX - fg.widthRatio / 2,
-      y: fg.centerY - fg.heightRatio / 2,
-      width: fg.widthRatio,
-      height: fg.heightRatio,
-    }, "图片主体区", "rgba(96,165,250,0.85)");
+    drawBox(layout.subjectBox || layout.imageBox, "图片主体区", "rgba(96,165,250,0.85)");
   } else if (state.type === "weekly") {
     drawBox(layout.headerBox, "栏目区", "rgba(45,212,191,0.85)");
     drawBox(layout.titleBox, "主标题区", "rgba(96,165,250,0.85)");
@@ -584,15 +889,16 @@ function renderCover(type, layoutKey, data, options = {}) {
   canvas.width = layout.width;
   canvas.height = layout.height;
   const ctx = canvas.getContext("2d");
+  const renderData = { ...data, imageState: getImageState(layoutKey, type) };
 
-  if (!data.image) {
+  if (!renderData.image) {
     drawPlaceholder(ctx, layout);
     return canvas;
   }
 
-  if (type === "talking-head") renderTalkingHead(ctx, layout, data);
-  if (type === "weekly") renderWeekly(ctx, layout, data);
-  if (type === "tutorial") renderTutorial(ctx, layout, data);
+  if (type === "talking-head") renderTalkingHead(ctx, layout, renderData);
+  if (type === "weekly") renderWeekly(ctx, layout, renderData);
+  if (type === "tutorial") renderTutorial(ctx, layout, renderData);
   if (options.safeArea) drawSafeAreas(ctx, layout);
 
   return canvas;
@@ -604,6 +910,25 @@ function copyCanvas(source, target) {
   const ctx = target.getContext("2d");
   ctx.clearRect(0, 0, target.width, target.height);
   ctx.drawImage(source, 0, 0);
+}
+
+function fitMainCanvasToStage() {
+  const stage = els.mainCanvas.parentElement;
+  if (!stage || !els.mainCanvas.width || !els.mainCanvas.height) return;
+
+  const styles = window.getComputedStyle(stage);
+  const paddingX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+  const paddingY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+  const availableWidth = Math.max(1, stage.clientWidth - paddingX);
+  const availableHeight = Math.max(1, stage.clientHeight - paddingY);
+  const scale = Math.min(
+    availableWidth / els.mainCanvas.width,
+    availableHeight / els.mainCanvas.height,
+    1,
+  );
+
+  els.mainCanvas.style.width = `${Math.floor(els.mainCanvas.width * scale)}px`;
+  els.mainCanvas.style.height = `${Math.floor(els.mainCanvas.height * scale)}px`;
 }
 
 function renderCombinedCanvas(canvas16x9, canvas4x3, canvas3x4) {
@@ -642,20 +967,25 @@ function getRenderedSet() {
 }
 
 function updateOutputs() {
-  els.scaleOutput.value = Number(state.imageState.scale).toFixed(2);
-  els.offsetXOutput.value = Math.round(state.imageState.offsetX);
-  els.offsetYOutput.value = Math.round(state.imageState.offsetY);
+  const activeImageState = getActiveImageState();
+  els.scaleInput.value = activeImageState.scale;
+  els.offsetXInput.value = activeImageState.offsetX;
+  els.offsetYInput.value = activeImageState.offsetY;
+  els.scaleOutput.value = Number(activeImageState.scale).toFixed(2);
+  els.offsetXOutput.value = Math.round(activeImageState.offsetX);
+  els.offsetYOutput.value = Math.round(activeImageState.offsetY);
   els.weekField.hidden = state.type !== "weekly";
   els.safeAreaButton.textContent = state.showSafeArea ? "隐藏安全区" : "显示安全区";
   els.safeAreaButton.setAttribute("aria-pressed", String(state.showSafeArea));
 
   const activeLayout = layouts[state.type][state.activeLayout];
   els.activeLayoutLabel.textContent = `${activeLayout.label} · ${activeLayout.width} × ${activeLayout.height}`;
+  els.adjustLayoutLabel.textContent = `当前：${activeLayout.label}`;
 
   document.querySelectorAll(".type-button").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.type === state.type);
   });
-  document.querySelectorAll(".layout-tab, .preview-card").forEach((item) => {
+  document.querySelectorAll(".layout-tab, .preview-card, .adjust-layout-button").forEach((item) => {
     item.classList.toggle("is-active", item.dataset.layout === state.activeLayout);
   });
 
@@ -676,23 +1006,84 @@ function renderAll() {
 
   const main = renderCover(state.type, state.activeLayout, state, { safeArea: state.showSafeArea });
   copyCanvas(main, els.mainCanvas);
+  fitMainCanvasToStage();
 }
 
 function setMessage(text) {
   els.message.textContent = text || "";
 }
 
+function setCurrentImage(image, name, type = state.type) {
+  state.imagesByType[type] = { image, name };
+  if (state.type === type) {
+    state.image = image;
+    state.imageName = name;
+    els.uploadText.textContent = name || "上传 PNG / JPG / WEBP";
+  }
+}
+
+function loadImageFromSource(src, name, type = state.type) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  }).then((image) => {
+    setCurrentImage(image, name, type);
+    setMessage("");
+    if (state.type === type) renderAll();
+    return image;
+  });
+}
+
+function syncImageForType() {
+  const current = state.imagesByType[state.type];
+  state.image = current?.image || null;
+  state.imageName = current?.name || "";
+  els.uploadText.textContent = state.imageName || "上传 PNG / JPG / WEBP";
+}
+
+function ensureWeeklyImage() {
+  const weeklyImage = state.imagesByType.weekly;
+  if (weeklyImage.image) {
+    syncImageForType();
+    renderAll();
+    return;
+  }
+
+  const cached = window.localStorage.getItem(weeklyImageCacheKey);
+  const source = cached || weeklyDefaultImageSrc;
+  const name = cached ? "已缓存周报贴纸" : "默认周报贴纸";
+  state.image = null;
+  state.imageName = "";
+  els.uploadText.textContent = "正在加载周报贴纸...";
+  renderAll();
+  loadImageFromSource(source, name, "weekly").catch(() => {
+    window.localStorage.removeItem(weeklyImageCacheKey);
+    if (source !== weeklyDefaultImageSrc) {
+      loadImageFromSource(weeklyDefaultImageSrc, "默认周报贴纸", "weekly").catch(() => setMessage("图片加载失败，请重新上传"));
+      return;
+    }
+    setMessage("图片加载失败，请重新上传");
+  });
+}
+
 function updateImageStateFromInputs() {
-  state.imageState.scale = Number(els.scaleInput.value);
-  state.imageState.offsetX = Number(els.offsetXInput.value);
-  state.imageState.offsetY = Number(els.offsetYInput.value);
+  if (!state.imageStates[state.type]) {
+    state.imageStates[state.type] = {};
+  }
+  state.imageStates[state.type][state.activeLayout] = {
+    scale: Number(els.scaleInput.value),
+    offsetX: Number(els.offsetXInput.value),
+    offsetY: Number(els.offsetYInput.value),
+  };
 }
 
 function setImageState(next) {
-  state.imageState = { ...state.imageState, ...next };
-  els.scaleInput.value = state.imageState.scale;
-  els.offsetXInput.value = state.imageState.offsetX;
-  els.offsetYInput.value = state.imageState.offsetY;
+  if (!state.imageStates[state.type]) {
+    state.imageStates[state.type] = {};
+  }
+  state.imageStates[state.type][state.activeLayout] = { ...getActiveImageState(), ...next };
   renderAll();
 }
 
@@ -707,9 +1098,14 @@ function loadImageFile(file) {
   reader.onload = () => {
     const image = new Image();
     image.onload = () => {
-      state.image = image;
-      state.imageName = file.name;
-      els.uploadText.textContent = file.name;
+      setCurrentImage(image, file.name);
+      if (state.type === "weekly") {
+        try {
+          window.localStorage.setItem(weeklyImageCacheKey, reader.result);
+        } catch {
+          setMessage("图片已替换，但浏览器缓存空间不足，无法长期保存");
+        }
+      }
       setMessage("");
       renderAll();
     };
@@ -723,11 +1119,16 @@ function loadImageFile(file) {
 document.querySelectorAll(".type-button").forEach((button) => {
   button.addEventListener("click", () => {
     state.type = button.dataset.type;
+    if (state.type === "weekly") {
+      ensureWeeklyImage();
+      return;
+    }
+    syncImageForType();
     renderAll();
   });
 });
 
-document.querySelectorAll(".layout-tab, .preview-card").forEach((item) => {
+document.querySelectorAll(".layout-tab, .preview-card, .adjust-layout-button").forEach((item) => {
   item.addEventListener("click", () => {
     state.activeLayout = item.dataset.layout;
     renderAll();
@@ -761,7 +1162,11 @@ els.weekInput.addEventListener("input", () => {
 });
 
 els.resetImageButton.addEventListener("click", () => {
-  setImageState({ scale: 1, offsetX: 0, offsetY: 0 });
+  if (!state.imageStates[state.type]) {
+    state.imageStates[state.type] = {};
+  }
+  state.imageStates[state.type][state.activeLayout] = defaultImageState(state.type, state.activeLayout);
+  renderAll();
 });
 
 els.safeAreaButton.addEventListener("click", () => {
@@ -793,8 +1198,8 @@ els.mainCanvas.addEventListener("pointerdown", (event) => {
   dragStart = {
     x: event.clientX,
     y: event.clientY,
-    offsetX: state.imageState.offsetX,
-    offsetY: state.imageState.offsetY,
+    offsetX: getActiveImageState().offsetX,
+    offsetY: getActiveImageState().offsetY,
   };
 });
 
@@ -804,8 +1209,8 @@ els.mainCanvas.addEventListener("pointermove", (event) => {
   const layout = layouts[state.type][state.activeLayout];
   const factorX = layout.width / rect.width;
   const factorY = layout.height / rect.height;
-  const nextX = clamp(dragStart.offsetX + (event.clientX - dragStart.x) * factorX, -300, 300);
-  const nextY = clamp(dragStart.offsetY + (event.clientY - dragStart.y) * factorY, -300, 300);
+  const nextX = clamp(dragStart.offsetX + (event.clientX - dragStart.x) * factorX, -1500, 1500);
+  const nextY = clamp(dragStart.offsetY + (event.clientY - dragStart.y) * factorY, -1500, 1500);
   setImageState({ offsetX: nextX, offsetY: nextY });
 });
 
@@ -816,5 +1221,12 @@ els.mainCanvas.addEventListener("pointerup", () => {
 els.mainCanvas.addEventListener("pointercancel", () => {
   dragStart = null;
 });
+
+if (window.ResizeObserver) {
+  const canvasStageObserver = new ResizeObserver(() => fitMainCanvasToStage());
+  canvasStageObserver.observe(els.mainCanvas.parentElement);
+} else {
+  window.addEventListener("resize", fitMainCanvasToStage);
+}
 
 renderAll();

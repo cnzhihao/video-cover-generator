@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "prepare:deploy": "rm -rf .deploy && mkdir -p .deploy && cp -R index.html style.css app.js assets _headers .deploy/",
+    "deploy": "npm run prepare:deploy && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.94.0"
+  }
+}
