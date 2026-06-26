@@ -104,6 +104,8 @@ const state = {
   },
   title: "用一个系统跑通内容生产",
   subtitle: "从选题到发布的可复用工作流",
+  titleSize: 100,
+  subtitleSize: 100,
   weekLabel: "2026-06-W3",
   imageStates: {
     "talking-head": {},
@@ -119,6 +121,10 @@ const els = {
   message: document.querySelector("#message"),
   titleInput: document.querySelector("#titleInput"),
   subtitleInput: document.querySelector("#subtitleInput"),
+  titleSizeInput: document.querySelector("#titleSizeInput"),
+  subtitleSizeInput: document.querySelector("#subtitleSizeInput"),
+  titleSizeOutput: document.querySelector("#titleSizeOutput"),
+  subtitleSizeOutput: document.querySelector("#subtitleSizeOutput"),
   weekInput: document.querySelector("#weekInput"),
   weekField: document.querySelector("#weekField"),
   scaleInput: document.querySelector("#scaleInput"),
@@ -444,6 +450,14 @@ function fitRichText(ctx, text, options) {
   return { size, lines };
 }
 
+function scaledTextSize(size, percent) {
+  return Math.round(size * (Number(percent) || 100) / 100);
+}
+
+function scaledMinTextSize(size, percent) {
+  return scaledTextSize(size, Math.min(Number(percent) || 100, 100));
+}
+
 function drawRichTextLines(ctx, lines, x, y, size, lineHeight, color) {
   const bgPadX = Math.max(8, size * 0.1);
   const bgPadY = Math.max(4, size * 0.08);
@@ -577,7 +591,7 @@ function drawPlaceholder(ctx, layout) {
 }
 
 function renderTalkingHead(ctx, layout, data) {
-  const { image, imageState, title, subtitle } = data;
+  const { image, imageState, title, subtitle, titleSize, subtitleSize } = data;
   fillBase(ctx, layout);
 
   if (layout.mode === "horizontal") {
@@ -617,8 +631,8 @@ function renderTalkingHead(ctx, layout, data) {
     maxWidth: box.w - pad * 2,
     maxHeight: box.h * 0.7,
     maxLines: 3,
-    maxSize: layout.mode === "vertical" ? 92 : 96,
-    minSize: 42,
+    maxSize: scaledTextSize(layout.mode === "vertical" ? 92 : 96, titleSize),
+    minSize: scaledMinTextSize(42, titleSize),
     weight: 900,
     lineHeight: titleLineHeight,
   });
@@ -626,8 +640,8 @@ function renderTalkingHead(ctx, layout, data) {
     maxWidth: box.w - pad * 2,
     maxHeight: box.h * 0.24,
     maxLines: 2,
-    maxSize: Math.round(titleFit.size * 0.42),
-    minSize: 28,
+    maxSize: scaledTextSize(Math.round(titleFit.size * 0.42), subtitleSize),
+    minSize: scaledMinTextSize(28, subtitleSize),
     weight: 700,
     lineHeight: subLineHeight,
   }) : { size: 0, lines: [] };
@@ -652,7 +666,7 @@ function renderTalkingHead(ctx, layout, data) {
 }
 
 function renderWeekly(ctx, layout, data) {
-  const { image, imageState, title, subtitle, weekLabel } = data;
+  const { image, imageState, title, subtitle, titleSize: titleSizePercent, subtitleSize, weekLabel } = data;
   const bg = ctx.createLinearGradient(0, 0, layout.width, layout.height);
   bg.addColorStop(0, "#0b1020");
   bg.addColorStop(0.55, "#111827");
@@ -683,8 +697,8 @@ function renderWeekly(ctx, layout, data) {
   const titleBox = rectFromRatio(layout, layout.titleBox);
   const subtitleBox = rectFromRatio(layout, layout.subtitleBox);
   const avatar = rectFromRatio(layout, layout.avatarBox);
-  const titleSize = clamp(layout.width * 0.076, 72, 118);
-  const headerSize = layout.key === "3x4" ? titleSize * 1.5 : titleSize;
+  const baseTitleSize = clamp(layout.width * 0.076, 72, 118);
+  const headerSize = layout.key === "3x4" ? baseTitleSize * 1.5 : baseTitleSize;
 
   setFont(ctx, Math.round(headerSize * 0.31), 800);
   ctx.fillStyle = "rgba(255,255,255,0.72)";
@@ -702,8 +716,8 @@ function renderWeekly(ctx, layout, data) {
     maxWidth: titleBox.w,
     maxHeight: titleBox.h,
     maxLines: 2,
-    maxSize: Math.round(titleSize),
-    minSize: 46,
+    maxSize: scaledTextSize(Math.round(baseTitleSize), titleSizePercent),
+    minSize: scaledMinTextSize(46, titleSizePercent),
     weight: 900,
     lineHeight: titleLineHeight,
   });
@@ -718,8 +732,8 @@ function renderWeekly(ctx, layout, data) {
     maxWidth: subtitleBox.w,
     maxHeight: subtitleBox.h,
     maxLines: 2,
-    maxSize: Math.round(mainFit.size * 0.42),
-    minSize: 28,
+    maxSize: scaledTextSize(Math.round(mainFit.size * 0.42), subtitleSize),
+    minSize: scaledMinTextSize(28, subtitleSize),
     weight: 700,
     lineHeight: subLineHeight,
   }) : { size: 0, lines: [] };
@@ -745,7 +759,7 @@ function renderWeekly(ctx, layout, data) {
 }
 
 function renderTutorial(ctx, layout, data) {
-  const { image, imageState, title, subtitle } = data;
+  const { image, imageState, title, subtitle, titleSize, subtitleSize } = data;
   fillBase(ctx, layout);
   ctx.save();
   ctx.filter = "blur(36px) brightness(55%) saturate(80%) contrast(90%)";
@@ -787,14 +801,14 @@ function renderTutorial(ctx, layout, data) {
   const padY = Math.min(layout.height * 0.055, 48);
   const titleLineHeight = 1.06;
   const subLineHeight = 1.22;
-  const textGap = layout.height * 0.075;
+  const textGap = layout.height * (layout.key === "3x4" ? 0.032 : 0.075);
   const hasSubtitle = Boolean(String(subtitle || "").trim());
   const titleFit = fitRichText(ctx, title || "请输入主标题", {
     maxWidth: panelMaxW - padX * 2,
     maxHeight: shot.h * (hasSubtitle ? 0.42 : 0.58),
     maxLines: 2,
-    maxSize: layout.key === "3x4" ? 72 : 76,
-    minSize: 34,
+    maxSize: scaledTextSize(layout.key === "3x4" ? 72 : 76, titleSize),
+    minSize: scaledMinTextSize(34, titleSize),
     weight: 900,
     lineHeight: titleLineHeight,
   });
@@ -802,8 +816,8 @@ function renderTutorial(ctx, layout, data) {
     maxWidth: panelMaxW - padX * 2,
     maxHeight: shot.h * 0.24,
     maxLines: 2,
-    maxSize: Math.round(titleFit.size * 0.42),
-    minSize: 24,
+    maxSize: scaledTextSize(Math.round(titleFit.size * 0.42), subtitleSize),
+    minSize: scaledMinTextSize(24, subtitleSize),
     weight: 700,
     lineHeight: subLineHeight,
   }) : { size: 0, lines: [] };
@@ -974,6 +988,10 @@ function updateOutputs() {
   els.scaleOutput.value = Number(activeImageState.scale).toFixed(2);
   els.offsetXOutput.value = Math.round(activeImageState.offsetX);
   els.offsetYOutput.value = Math.round(activeImageState.offsetY);
+  els.titleSizeInput.value = state.titleSize;
+  els.subtitleSizeInput.value = state.subtitleSize;
+  els.titleSizeOutput.value = `${Math.round(state.titleSize)}%`;
+  els.subtitleSizeOutput.value = `${Math.round(state.subtitleSize)}%`;
   els.weekField.hidden = state.type !== "weekly";
   els.safeAreaButton.textContent = state.showSafeArea ? "隐藏安全区" : "显示安全区";
   els.safeAreaButton.setAttribute("aria-pressed", String(state.showSafeArea));
@@ -1014,7 +1032,14 @@ function setMessage(text) {
 }
 
 function setCurrentImage(image, name, type = state.type) {
-  state.imagesByType[type] = { image, name };
+  const nextImageState = { image, name };
+  if (type === "talking-head" || type === "tutorial") {
+    state.imagesByType["talking-head"] = nextImageState;
+    state.imagesByType.tutorial = nextImageState;
+  } else {
+    state.imagesByType[type] = nextImageState;
+  }
+
   if (state.type === type) {
     state.image = image;
     state.imageName = name;
@@ -1137,6 +1162,7 @@ document.querySelectorAll(".layout-tab, .preview-card, .adjust-layout-button").f
 
 els.imageInput.addEventListener("change", (event) => {
   loadImageFile(event.target.files[0]);
+  event.target.value = "";
 });
 
 els.titleInput.addEventListener("input", () => {
@@ -1146,6 +1172,16 @@ els.titleInput.addEventListener("input", () => {
 
 els.subtitleInput.addEventListener("input", () => {
   state.subtitle = els.subtitleInput.value;
+  renderAll();
+});
+
+els.titleSizeInput.addEventListener("input", () => {
+  state.titleSize = Number(els.titleSizeInput.value);
+  renderAll();
+});
+
+els.subtitleSizeInput.addEventListener("input", () => {
+  state.subtitleSize = Number(els.subtitleSizeInput.value);
   renderAll();
 });
 

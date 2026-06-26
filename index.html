@@ -45,6 +45,20 @@
             <textarea id="subtitleInput" maxlength="100" rows="3" placeholder="请输入副标题">从选题到发布的可复用工作流</textarea>
           </section>
 
+          <section class="field-group text-size-controls" aria-label="标题字号">
+            <div class="control-row">
+              <label for="titleSizeInput">主标题字号</label>
+              <output id="titleSizeOutput">100%</output>
+            </div>
+            <input id="titleSizeInput" type="range" min="70" max="140" step="1" value="100" />
+
+            <div class="control-row">
+              <label for="subtitleSizeInput">副标题字号</label>
+              <output id="subtitleSizeOutput">100%</output>
+            </div>
+            <input id="subtitleSizeInput" type="range" min="70" max="160" step="1" value="100" />
+          </section>
+
           <section class="field-group" id="weekField" hidden>
             <label class="field-label" for="weekInput">周标识</label>
             <input id="weekInput" maxlength="20" type="text" value="2026-06-W3" placeholder="2026-06-W3" />

@@ -243,6 +243,10 @@ input[type="text"]:focus {
   padding-top: 4px;
 }
 
+.text-size-controls {
+  padding-top: 2px;
+}
+
 .adjust-head {
   display: flex;
   align-items: center;
