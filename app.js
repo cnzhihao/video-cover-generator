@@ -1,6 +1,6 @@
 const fontFamily = `Inter, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Arial, sans-serif`;
 const weeklyDefaultImageSrc = "assets/weekly-sticker.png";
-const weeklyImageCacheKey = "video-cover-generator.weekly-image";
+const legacyWeeklyImageCacheKey = "video-cover-generator.weekly-image";
 const defaultImageStatesByType = {
   "talking-head": {
     "16x9": { scale: 1, offsetX: 0, offsetY: 0 },
@@ -1076,19 +1076,16 @@ function ensureWeeklyImage() {
     return;
   }
 
-  const cached = window.localStorage.getItem(weeklyImageCacheKey);
-  const source = cached || weeklyDefaultImageSrc;
-  const name = cached ? "已缓存周报贴纸" : "默认周报贴纸";
+  try {
+    window.localStorage.removeItem(legacyWeeklyImageCacheKey);
+  } catch {
+    // Ignore unavailable storage; weekly now falls back to the bundled default image.
+  }
   state.image = null;
   state.imageName = "";
   els.uploadText.textContent = "正在加载周报贴纸...";
   renderAll();
-  loadImageFromSource(source, name, "weekly").catch(() => {
-    window.localStorage.removeItem(weeklyImageCacheKey);
-    if (source !== weeklyDefaultImageSrc) {
-      loadImageFromSource(weeklyDefaultImageSrc, "默认周报贴纸", "weekly").catch(() => setMessage("图片加载失败，请重新上传"));
-      return;
-    }
+  loadImageFromSource(weeklyDefaultImageSrc, "默认周报贴纸", "weekly").catch(() => {
     setMessage("图片加载失败，请重新上传");
   });
 }
@@ -1124,13 +1121,6 @@ function loadImageFile(file) {
     const image = new Image();
     image.onload = () => {
       setCurrentImage(image, file.name);
-      if (state.type === "weekly") {
-        try {
-          window.localStorage.setItem(weeklyImageCacheKey, reader.result);
-        } catch {
-          setMessage("图片已替换，但浏览器缓存空间不足，无法长期保存");
-        }
-      }
       setMessage("");
       renderAll();
     };
