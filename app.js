@@ -1,5 +1,8 @@
 const fontFamily = `Inter, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Arial, sans-serif`;
 const weeklyDefaultImageSrc = "assets/weekly-sticker.png";
+const weeklyDefaultImageId = "default";
+const weeklyImageDbName = "video-cover-generator";
+const weeklyImageStoreName = "weekly-images";
 const legacyWeeklyImageCacheKey = "video-cover-generator.weekly-image";
 const defaultImageStatesByType = {
   "talking-head": {
@@ -107,6 +110,8 @@ const state = {
   titleSize: 100,
   subtitleSize: 100,
   weekLabel: "2026-06-W3",
+  weeklyImageLibrary: [],
+  weeklySelectedImageId: weeklyDefaultImageId,
   imageStates: {
     "talking-head": {},
     weekly: {},
@@ -121,6 +126,8 @@ const els = {
   message: document.querySelector("#message"),
   titleInput: document.querySelector("#titleInput"),
   subtitleInput: document.querySelector("#subtitleInput"),
+  weeklyLibraryField: document.querySelector("#weeklyLibraryField"),
+  weeklyImageGrid: document.querySelector("#weeklyImageGrid"),
   titleSizeInput: document.querySelector("#titleSizeInput"),
   subtitleSizeInput: document.querySelector("#subtitleSizeInput"),
   titleSizeOutput: document.querySelector("#titleSizeOutput"),
@@ -993,6 +1000,7 @@ function updateOutputs() {
   els.titleSizeOutput.value = `${Math.round(state.titleSize)}%`;
   els.subtitleSizeOutput.value = `${Math.round(state.subtitleSize)}%`;
   els.weekField.hidden = state.type !== "weekly";
+  els.weeklyLibraryField.hidden = state.type !== "weekly";
   els.safeAreaButton.textContent = state.showSafeArea ? "隐藏安全区" : "显示安全区";
   els.safeAreaButton.setAttribute("aria-pressed", String(state.showSafeArea));
 
@@ -1031,6 +1039,30 @@ function setMessage(text) {
   els.message.textContent = text || "";
 }
 
+function loadImageElement(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function loadImageFromBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  return loadImageElement(url).finally(() => URL.revokeObjectURL(url));
+}
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;",
+  })[char]);
+}
+
 function setCurrentImage(image, name, type = state.type) {
   const nextImageState = { image, name };
   if (type === "talking-head" || type === "tutorial") {
@@ -1048,17 +1080,169 @@ function setCurrentImage(image, name, type = state.type) {
 }
 
 function loadImageFromSource(src, name, type = state.type) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = src;
-  }).then((image) => {
+  return loadImageElement(src).then((image) => {
     setCurrentImage(image, name, type);
     setMessage("");
     if (state.type === type) renderAll();
     return image;
   });
+}
+
+function openWeeklyImageDb() {
+  if (!window.indexedDB) {
+    return Promise.reject(new Error("IndexedDB unavailable"));
+  }
+
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(weeklyImageDbName, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(weeklyImageStoreName)) {
+        db.createObjectStore(weeklyImageStoreName, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function weeklyImageStore(mode, callback) {
+  return openWeeklyImageDb().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction(weeklyImageStoreName, mode);
+    const store = tx.objectStore(weeklyImageStoreName);
+    const request = callback(store);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => db.close();
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
+    };
+  }));
+}
+
+function loadWeeklyImageLibrary() {
+  return weeklyImageStore("readonly", (store) => store.getAll())
+    .then((items) => {
+      state.weeklyImageLibrary.forEach((item) => {
+        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      });
+      state.weeklyImageLibrary = items
+        .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+        .map((item) => ({ ...item, previewUrl: URL.createObjectURL(item.blob) }));
+      renderWeeklyImageLibrary();
+    })
+    .catch(() => {
+      state.weeklyImageLibrary = [];
+      renderWeeklyImageLibrary();
+    });
+}
+
+function saveWeeklyImageRecord(record) {
+  return weeklyImageStore("readwrite", (store) => store.put(record));
+}
+
+function deleteWeeklyImageRecord(id) {
+  return weeklyImageStore("readwrite", (store) => store.delete(id));
+}
+
+function weeklyImageItems() {
+  return [
+    {
+      id: weeklyDefaultImageId,
+      name: "默认图",
+      previewUrl: weeklyDefaultImageSrc,
+      removable: false,
+    },
+    ...state.weeklyImageLibrary.map((item) => ({
+      id: item.id,
+      name: item.name || "周报图",
+      previewUrl: item.previewUrl,
+      removable: true,
+    })),
+  ];
+}
+
+function renderWeeklyImageLibrary() {
+  if (!els.weeklyImageGrid) return;
+
+  els.weeklyImageGrid.innerHTML = weeklyImageItems().map((item) => `
+    <div class="weekly-image-item${item.id === state.weeklySelectedImageId ? " is-active" : ""}" data-weekly-image-id="${escapeHtml(item.id)}" role="button" tabindex="0" aria-pressed="${item.id === state.weeklySelectedImageId}">
+      ${item.removable ? `<button class="weekly-delete-button" data-delete-weekly-image="${escapeHtml(item.id)}" type="button" aria-label="删除 ${escapeHtml(item.name)}">×</button>` : ""}
+      <img src="${escapeHtml(item.previewUrl)}" alt="${escapeHtml(item.name)}" />
+      <span class="weekly-image-name">${escapeHtml(item.name)}</span>
+    </div>
+  `).join("");
+}
+
+function selectWeeklyDefaultImage() {
+  state.weeklySelectedImageId = weeklyDefaultImageId;
+  return loadImageFromSource(weeklyDefaultImageSrc, "默认周报贴纸", "weekly").then(() => {
+    renderWeeklyImageLibrary();
+  });
+}
+
+function selectWeeklyLibraryImage(id) {
+  if (id === weeklyDefaultImageId) {
+    selectWeeklyDefaultImage();
+    return;
+  }
+
+  const item = state.weeklyImageLibrary.find((entry) => entry.id === id);
+  if (!item) return;
+
+  loadImageFromBlob(item.blob)
+    .then((image) => {
+      state.weeklySelectedImageId = id;
+      setCurrentImage(image, item.name || "周报图", "weekly");
+      setMessage("");
+      renderWeeklyImageLibrary();
+      renderAll();
+    })
+    .catch(() => setMessage("图片加载失败，请重新上传"));
+}
+
+function saveWeeklyImageFile(file) {
+  const id = `weekly-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const record = {
+    id,
+    name: file.name || "周报图",
+    blob: file,
+    createdAt: Date.now(),
+  };
+
+  saveWeeklyImageRecord(record)
+    .then(() => loadImageFromBlob(file))
+    .then((image) => {
+      const item = { ...record, previewUrl: URL.createObjectURL(file) };
+      state.weeklyImageLibrary = [
+        item,
+        ...state.weeklyImageLibrary.filter((entry) => entry.id !== id),
+      ];
+      state.weeklySelectedImageId = id;
+      setCurrentImage(image, record.name, "weekly");
+      setMessage("");
+      renderWeeklyImageLibrary();
+      renderAll();
+    })
+    .catch(() => setMessage("浏览器图片库不可用，请重新上传"));
+}
+
+function deleteWeeklyLibraryImage(id) {
+  const item = state.weeklyImageLibrary.find((entry) => entry.id === id);
+  if (!item) return;
+
+  deleteWeeklyImageRecord(id)
+    .then(() => {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      state.weeklyImageLibrary = state.weeklyImageLibrary.filter((entry) => entry.id !== id);
+      if (state.weeklySelectedImageId === id) {
+        selectWeeklyDefaultImage();
+        return;
+      }
+      renderWeeklyImageLibrary();
+    })
+    .catch(() => setMessage("删除失败，请稍后再试"));
 }
 
 function syncImageForType() {
@@ -1085,7 +1269,7 @@ function ensureWeeklyImage() {
   state.imageName = "";
   els.uploadText.textContent = "正在加载周报贴纸...";
   renderAll();
-  loadImageFromSource(weeklyDefaultImageSrc, "默认周报贴纸", "weekly").catch(() => {
+  selectWeeklyDefaultImage().catch(() => {
     setMessage("图片加载失败，请重新上传");
   });
 }
@@ -1113,6 +1297,11 @@ function loadImageFile(file) {
   if (!file) return;
   if (!file.type.startsWith("image/")) {
     setMessage("请上传图片文件");
+    return;
+  }
+
+  if (state.type === "weekly") {
+    saveWeeklyImageFile(file);
     return;
   }
 
@@ -1153,6 +1342,29 @@ document.querySelectorAll(".layout-tab, .preview-card, .adjust-layout-button").f
 els.imageInput.addEventListener("change", (event) => {
   loadImageFile(event.target.files[0]);
   event.target.value = "";
+});
+
+els.weeklyImageGrid.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest("[data-delete-weekly-image]");
+  if (deleteButton) {
+    event.stopPropagation();
+    deleteWeeklyLibraryImage(deleteButton.dataset.deleteWeeklyImage);
+    return;
+  }
+
+  const item = event.target.closest("[data-weekly-image-id]");
+  if (!item) return;
+  selectWeeklyLibraryImage(item.dataset.weeklyImageId);
+});
+
+els.weeklyImageGrid.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  if (event.target.closest("[data-delete-weekly-image]")) return;
+
+  const item = event.target.closest("[data-weekly-image-id]");
+  if (!item) return;
+  event.preventDefault();
+  selectWeeklyLibraryImage(item.dataset.weeklyImageId);
 });
 
 els.titleInput.addEventListener("input", () => {
@@ -1255,4 +1467,6 @@ if (window.ResizeObserver) {
   window.addEventListener("resize", fitMainCanvasToStage);
 }
 
+renderWeeklyImageLibrary();
+loadWeeklyImageLibrary();
 renderAll();
