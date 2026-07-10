@@ -3,20 +3,31 @@ const weeklyDefaultImageSrc = "assets/weekly-sticker.png";
 const weeklyDefaultImageId = "default";
 const weeklyImageDbName = "video-cover-generator";
 const weeklyImageStoreName = "weekly-images";
+const draftImageStoreName = "draft-images";
+const draftStorageKey = "video-cover-generator.draft.v2";
 const legacyWeeklyImageCacheKey = "video-cover-generator.weekly-image";
+const typeKeys = ["talking-head", "weekly", "tutorial"];
+const ogVideoTypes = new Set(["weekly", "tutorial"]);
+const ogVideoLayout = { width: 1440, height: 810, fps: 30, duration: 3.6 };
 const defaultImageStatesByType = {
   "talking-head": {
     "16x9": { scale: 1, offsetX: 0, offsetY: 0 },
+    "21x9": { scale: 1, offsetX: 0, offsetY: 0 },
+    "5x2": { scale: 1, offsetX: 0, offsetY: 0 },
     "4x3": { scale: 1, offsetX: 0, offsetY: 0 },
     "3x4": { scale: 1, offsetX: 0, offsetY: 0 },
   },
   weekly: {
     "16x9": { scale: 1, offsetX: 186, offsetY: -160 },
+    "21x9": { scale: 1, offsetX: 120, offsetY: -120 },
+    "5x2": { scale: 1, offsetX: 100, offsetY: -110 },
     "4x3": { scale: 1, offsetX: 246, offsetY: 193 },
     "3x4": { scale: 1, offsetX: 288, offsetY: -300 },
   },
   tutorial: {
     "16x9": { scale: 1, offsetX: 0, offsetY: 0 },
+    "21x9": { scale: 1, offsetX: 0, offsetY: 0 },
+    "5x2": { scale: 1, offsetX: 0, offsetY: 0 },
     "4x3": { scale: 1, offsetX: 0, offsetY: 0 },
     "3x4": { scale: 1, offsetX: 0, offsetY: 0 },
   },
@@ -24,9 +35,12 @@ const defaultImageStatesByType = {
 
 const layoutBase = {
   "16x9": { key: "16x9", label: "16:9", width: 1440, height: 810 },
+  "21x9": { key: "21x9", label: "2.35:1", width: 1880, height: 800 },
+  "5x2": { key: "5x2", label: "5:2", width: 2000, height: 800 },
   "4x3": { key: "4x3", label: "4:3", width: 1440, height: 1080 },
   "3x4": { key: "3x4", label: "3:4", width: 1080, height: 1440 },
 };
+const layoutOrder = ["16x9", "4x3", "3x4", "21x9", "5x2"];
 
 const layouts = {
   "talking-head": {
@@ -36,6 +50,20 @@ const layouts = {
       imageBox: { x: 0.5, y: 0, width: 0.5, height: 1 },
       textBox: { x: 0.06, y: 0.19, width: 0.59, height: 0.56 },
       mask: { solidUntil: 0.5, fadeUntil: 0.6 },
+    },
+    "21x9": {
+      ...layoutBase["21x9"],
+      mode: "horizontal",
+      imageBox: { x: 0.58, y: 0, width: 0.42, height: 1 },
+      textBox: { x: 0.055, y: 0.2, width: 0.58, height: 0.52 },
+      mask: { solidUntil: 0.54, fadeUntil: 0.64 },
+    },
+    "5x2": {
+      ...layoutBase["5x2"],
+      mode: "horizontal",
+      imageBox: { x: 0.6, y: 0, width: 0.4, height: 1 },
+      textBox: { x: 0.052, y: 0.2, width: 0.58, height: 0.52 },
+      mask: { solidUntil: 0.56, fadeUntil: 0.66 },
     },
     "4x3": {
       ...layoutBase["4x3"],
@@ -61,6 +89,20 @@ const layouts = {
       subtitleBox: { x: 0.07, y: 0.66, width: 0.58, height: 0.12 },
       avatarBox: { x: 0.63, y: 0.26, width: 0.33, height: 0.63 },
     },
+    "21x9": {
+      ...layoutBase["21x9"],
+      headerBox: { x: 0.06, y: 0.11, width: 0.34, height: 0.17 },
+      titleBox: { x: 0.06, y: 0.33, width: 0.58, height: 0.34 },
+      subtitleBox: { x: 0.06, y: 0.68, width: 0.48, height: 0.12 },
+      avatarBox: { x: 0.69, y: 0.22, width: 0.26, height: 0.68 },
+    },
+    "5x2": {
+      ...layoutBase["5x2"],
+      headerBox: { x: 0.055, y: 0.11, width: 0.32, height: 0.17 },
+      titleBox: { x: 0.055, y: 0.33, width: 0.58, height: 0.34 },
+      subtitleBox: { x: 0.055, y: 0.68, width: 0.48, height: 0.12 },
+      avatarBox: { x: 0.72, y: 0.21, width: 0.23, height: 0.69 },
+    },
     "4x3": {
       ...layoutBase["4x3"],
       headerBox: { x: 0.08, y: 0.08, width: 0.55, height: 0.15 },
@@ -82,6 +124,16 @@ const layouts = {
       screenshotBox: { x: 0.08, y: 0.12, width: 0.84, height: 0.76, radius: 32 },
       textPanel: { x: 0.09, y: 0.14, width: 0.42, height: 0.34, radius: 24 },
     },
+    "21x9": {
+      ...layoutBase["21x9"],
+      screenshotBox: { x: 0.06, y: 0.12, width: 0.88, height: 0.76, radius: 32 },
+      textPanel: { x: 0.07, y: 0.15, width: 0.34, height: 0.34, radius: 24 },
+    },
+    "5x2": {
+      ...layoutBase["5x2"],
+      screenshotBox: { x: 0.055, y: 0.12, width: 0.89, height: 0.76, radius: 32 },
+      textPanel: { x: 0.065, y: 0.15, width: 0.32, height: 0.34, radius: 24 },
+    },
     "4x3": {
       ...layoutBase["4x3"],
       screenshotBox: { x: 0.08, y: 0.12, width: 0.84, height: 0.76, radius: 32 },
@@ -97,7 +149,13 @@ const layouts = {
 
 const state = {
   type: "talking-head",
+  outputMode: "cover",
   activeLayout: "16x9",
+  activeLayoutsByType: {
+    "talking-head": "16x9",
+    weekly: "16x9",
+    tutorial: "16x9",
+  },
   image: null,
   imageName: "",
   imagesByType: {
@@ -110,6 +168,41 @@ const state = {
   titleSize: 100,
   subtitleSize: 100,
   weekLabel: "2026-06-W3",
+  fieldsByType: {
+    "talking-head": {
+      title: "用一个系统跑通内容生产",
+      subtitle: "从选题到发布的可复用工作流",
+      titleSize: 100,
+      subtitleSize: 100,
+      weekLabel: "2026-06-W3",
+      lessonNumber: 3,
+      lessonTotal: 6,
+      lessonSteps: ["需求拆解", "搭建工作流", "上线与复盘"],
+      showSeriesProgress: true,
+    },
+    weekly: {
+      title: "用一个系统跑通内容生产",
+      subtitle: "从选题到发布的可复用工作流",
+      titleSize: 100,
+      subtitleSize: 100,
+      weekLabel: "2026-06-W3",
+      lessonNumber: 3,
+      lessonTotal: 6,
+      lessonSteps: ["需求拆解", "搭建工作流", "上线与复盘"],
+      showSeriesProgress: true,
+    },
+    tutorial: {
+      title: "用一个系统跑通内容生产",
+      subtitle: "从选题到发布的可复用工作流",
+      titleSize: 100,
+      subtitleSize: 100,
+      weekLabel: "2026-06-W3",
+      lessonNumber: 3,
+      lessonTotal: 6,
+      lessonSteps: ["需求拆解", "搭建工作流", "上线与复盘"],
+      showSeriesProgress: true,
+    },
+  },
   weeklyImageLibrary: [],
   weeklySelectedImageId: weeklyDefaultImageId,
   imageStates: {
@@ -118,11 +211,14 @@ const state = {
     tutorial: {},
   },
   showSafeArea: false,
+  isExportingOgVideo: false,
+  ogPreview: { playing: true, startedAt: 0, elapsed: 0, frameId: 0 },
 };
 
 const els = {
   imageInput: document.querySelector("#imageInput"),
   uploadText: document.querySelector("#uploadText"),
+  imageLabel: document.querySelector("#imageLabel"),
   message: document.querySelector("#message"),
   titleInput: document.querySelector("#titleInput"),
   subtitleInput: document.querySelector("#subtitleInput"),
@@ -134,6 +230,13 @@ const els = {
   subtitleSizeOutput: document.querySelector("#subtitleSizeOutput"),
   weekInput: document.querySelector("#weekInput"),
   weekField: document.querySelector("#weekField"),
+  tutorialSeriesField: document.querySelector("#tutorialSeriesField"),
+  lessonNumberInput: document.querySelector("#lessonNumberInput"),
+  lessonTotalInput: document.querySelector("#lessonTotalInput"),
+  lessonStep1Input: document.querySelector("#lessonStep1Input"),
+  lessonStep2Input: document.querySelector("#lessonStep2Input"),
+  lessonStep3Input: document.querySelector("#lessonStep3Input"),
+  showSeriesProgressInput: document.querySelector("#showSeriesProgressInput"),
   scaleInput: document.querySelector("#scaleInput"),
   offsetXInput: document.querySelector("#offsetXInput"),
   offsetYInput: document.querySelector("#offsetYInput"),
@@ -144,22 +247,209 @@ const els = {
   safeAreaButton: document.querySelector("#safeAreaButton"),
   mainCanvas: document.querySelector("#mainCanvas"),
   emptyState: document.querySelector("#emptyState"),
+  canvasTitle: document.querySelector("#canvasTitle"),
   activeLayoutLabel: document.querySelector("#activeLayoutLabel"),
   adjustLayoutLabel: document.querySelector("#adjustLayoutLabel"),
+  coverLayoutTabs: document.querySelector("#coverLayoutTabs"),
+  coverPreviewList: document.querySelector("#coverPreviewList"),
+  ogVideoPanel: document.querySelector("#ogVideoPanel"),
+  videoControls: document.querySelector("#videoControls"),
+  toggleVideoPreviewButton: document.querySelector("#toggleVideoPreviewButton"),
+  restartVideoPreviewButton: document.querySelector("#restartVideoPreviewButton"),
+  videoFormatStatus: document.querySelector("#videoFormatStatus"),
+  videoFormatMessage: document.querySelector("#videoFormatMessage"),
   preview16x9: document.querySelector("#preview16x9"),
+  preview21x9: document.querySelector("#preview21x9"),
+  preview5x2: document.querySelector("#preview5x2"),
   preview4x3: document.querySelector("#preview4x3"),
   preview3x4: document.querySelector("#preview3x4"),
   downloadCombinedButton: document.querySelector("#downloadCombinedButton"),
+  downloadOgVideoButton: document.querySelector("#downloadOgVideoButton"),
   download16x9Button: document.querySelector("#download16x9Button"),
+  download21x9Button: document.querySelector("#download21x9Button"),
+  download5x2Button: document.querySelector("#download5x2Button"),
   download4x3Button: document.querySelector("#download4x3Button"),
   download3x4Button: document.querySelector("#download3x4Button"),
 };
 
 const previewCanvases = {
   "16x9": els.preview16x9,
+  "21x9": els.preview21x9,
+  "5x2": els.preview5x2,
   "4x3": els.preview4x3,
   "3x4": els.preview3x4,
 };
+
+function availableLayoutKeys(type = state.type) {
+  return layoutOrder.filter((key) => layouts[type]?.[key]);
+}
+
+function isLayoutAvailable(layoutKey, type = state.type) {
+  return Boolean(layouts[type]?.[layoutKey]);
+}
+
+function ensureActiveLayout() {
+  if (!isLayoutAvailable(state.activeLayout)) {
+    state.activeLayout = availableLayoutKeys()[0] || "16x9";
+  }
+  state.activeLayoutsByType[state.type] = state.activeLayout;
+}
+
+function defaultFieldsForType(type) {
+  return {
+    title: "用一个系统跑通内容生产",
+    subtitle: "从选题到发布的可复用工作流",
+    titleSize: 100,
+    subtitleSize: 100,
+    weekLabel: "2026-06-W3",
+    lessonNumber: 3,
+    lessonTotal: 6,
+    lessonSteps: ["需求拆解", "搭建工作流", "上线与复盘"],
+    showSeriesProgress: true,
+    ...(state.fieldsByType[type] || {}),
+  };
+}
+
+function applyFieldsForType(type = state.type) {
+  const fields = defaultFieldsForType(type);
+  state.fieldsByType[type] = fields;
+  state.title = fields.title;
+  state.subtitle = fields.subtitle;
+  state.titleSize = Number(fields.titleSize) || 100;
+  state.subtitleSize = Number(fields.subtitleSize) || 100;
+  state.weekLabel = fields.weekLabel || "";
+  state.lessonNumber = clamp(Number(fields.lessonNumber) || 3, 1, 99);
+  state.lessonTotal = clamp(Number(fields.lessonTotal) || 6, 1, 99);
+  state.lessonSteps = Array.isArray(fields.lessonSteps)
+    ? [fields.lessonSteps[0] || "步骤 01", fields.lessonSteps[1] || "步骤 02", fields.lessonSteps[2] || "步骤 03"]
+    : ["需求拆解", "搭建工作流", "上线与复盘"];
+  state.showSeriesProgress = fields.showSeriesProgress !== false;
+
+  els.titleInput.value = state.title;
+  els.subtitleInput.value = state.subtitle;
+  els.titleSizeInput.value = state.titleSize;
+  els.subtitleSizeInput.value = state.subtitleSize;
+  els.weekInput.value = state.weekLabel;
+  els.lessonNumberInput.value = state.lessonNumber;
+  els.lessonTotalInput.value = state.lessonTotal;
+  els.lessonStep1Input.value = state.lessonSteps[0];
+  els.lessonStep2Input.value = state.lessonSteps[1];
+  els.lessonStep3Input.value = state.lessonSteps[2];
+  els.showSeriesProgressInput.checked = state.showSeriesProgress;
+}
+
+function updateActiveFields(patch) {
+  state.fieldsByType[state.type] = {
+    ...defaultFieldsForType(state.type),
+    ...patch,
+  };
+  applyFieldsForType(state.type);
+  persistDraftState();
+}
+
+function draftStatePayload() {
+  return {
+    version: 2,
+    type: state.type,
+    outputMode: state.outputMode,
+    activeLayout: state.activeLayout,
+    activeLayoutsByType: state.activeLayoutsByType,
+    fieldsByType: state.fieldsByType,
+    imageStates: state.imageStates,
+    weeklySelectedImageId: state.weeklySelectedImageId,
+    imageNamesByType: Object.fromEntries(typeKeys.map((type) => [type, state.imagesByType[type]?.name || ""])),
+  };
+}
+
+function persistDraftState() {
+  try {
+    window.localStorage.setItem(draftStorageKey, JSON.stringify(draftStatePayload()));
+  } catch {
+    // Draft persistence is best-effort; the generator remains usable without localStorage.
+  }
+}
+
+function restoreDraftState() {
+  try {
+    const raw = window.localStorage.getItem(draftStorageKey);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (typeKeys.includes(draft.type)) {
+      state.type = draft.type;
+    }
+    if (draft.outputMode === "og-video" && ogVideoTypes.has(state.type)) {
+      state.outputMode = "og-video";
+    }
+    if (draft.activeLayoutsByType && typeof draft.activeLayoutsByType === "object") {
+      typeKeys.forEach((type) => {
+        if (isLayoutAvailable(draft.activeLayoutsByType[type], type)) {
+          state.activeLayoutsByType[type] = draft.activeLayoutsByType[type];
+        }
+      });
+    }
+    if (draft.activeLayout && isLayoutAvailable(draft.activeLayout, state.type)) {
+      state.activeLayout = draft.activeLayout;
+    } else {
+      state.activeLayout = state.activeLayoutsByType[state.type] || "16x9";
+    }
+    if (draft.fieldsByType && typeof draft.fieldsByType === "object") {
+      typeKeys.forEach((type) => {
+        if (draft.fieldsByType[type] && typeof draft.fieldsByType[type] === "object") {
+          state.fieldsByType[type] = {
+            ...defaultFieldsForType(type),
+            ...draft.fieldsByType[type],
+          };
+        }
+      });
+    }
+    if (draft.imageStates && typeof draft.imageStates === "object") {
+      state.imageStates = {
+        "talking-head": draft.imageStates["talking-head"] || {},
+        weekly: draft.imageStates.weekly || {},
+        tutorial: draft.imageStates.tutorial || {},
+      };
+    }
+    if (draft.weeklySelectedImageId) {
+      state.weeklySelectedImageId = draft.weeklySelectedImageId;
+    }
+    if (draft.imageNamesByType && typeof draft.imageNamesByType === "object") {
+      typeKeys.forEach((type) => {
+        const name = draft.imageNamesByType[type] || "";
+        state.imagesByType[type] = { image: null, name };
+      });
+    }
+  } catch {
+    // Ignore malformed old drafts.
+  }
+}
+
+function switchType(type) {
+  if (!typeKeys.includes(type)) return;
+  state.activeLayoutsByType[state.type] = state.activeLayout;
+  state.type = type;
+  if (!ogVideoTypes.has(type)) {
+    state.outputMode = "cover";
+  }
+  state.activeLayout = state.activeLayoutsByType[type] || state.activeLayout;
+  ensureActiveLayout();
+  applyFieldsForType(type);
+  syncImageForType();
+  persistDraftState();
+  if (state.type === "weekly") {
+    ensureWeeklyImage();
+    return;
+  }
+  renderAll();
+}
+
+function switchOutputMode(mode) {
+  if (mode !== "cover" && mode !== "og-video") return;
+  if (mode === "og-video" && !ogVideoTypes.has(state.type)) return;
+  state.outputMode = mode;
+  if (mode === "og-video") restartOgPreview();
+  persistDraftState();
+  renderAll();
+}
 
 function defaultImageState(type = state.type, layoutKey = state.activeLayout) {
   return { ...(defaultImageStatesByType[type]?.[layoutKey] || { scale: 1, offsetX: 0, offsetY: 0 }) };
@@ -175,8 +465,12 @@ function getImageState(layoutKey, type = state.type) {
   return state.imageStates[type][layoutKey];
 }
 
+function imageAdjustmentLayoutKey() {
+  return state.type === "tutorial" && state.outputMode === "og-video" ? "3x4" : state.activeLayout;
+}
+
 function getActiveImageState() {
-  return getImageState(state.activeLayout, state.type);
+  return getImageState(imageAdjustmentLayoutKey(), state.type);
 }
 
 function clamp(value, min, max) {
@@ -765,6 +1059,347 @@ function renderWeekly(ctx, layout, data) {
   ctx.fillRect(0, 0, layout.width, layout.height);
 }
 
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+}
+
+function animationRange(progress, start, end) {
+  return clamp((progress - start) / (end - start), 0, 1);
+}
+
+function renderWeeklyAnimationFrame(ctx, frame, totalFrames, data) {
+  const layout = layouts.weekly["16x9"];
+  const progress = frame / Math.max(1, totalFrames - 1);
+  const width = layout.width;
+  const height = layout.height;
+  const imageState = data.imageState || defaultImageState("weekly", "16x9");
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.save();
+
+  const bgFade = easeOutCubic(animationRange(progress, 0, 0.16));
+  const bg = ctx.createLinearGradient(0, 0, width, height);
+  bg.addColorStop(0, "#0b1020");
+  bg.addColorStop(0.55, "#111827");
+  bg.addColorStop(1, "#050505");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = `rgba(0,0,0,${1 - bgFade})`;
+  ctx.fillRect(0, 0, width, height);
+
+  const glowProgress = easeOutCubic(animationRange(progress, 0.05, 0.5));
+  const glow = ctx.createRadialGradient(width * 0.82, height * 0.72, 0, width * 0.82, height * 0.72, width * (0.25 + 0.13 * glowProgress));
+  glow.addColorStop(0, `rgba(45,212,191,${0.08 + 0.18 * glowProgress})`);
+  glow.addColorStop(0.42, `rgba(59,130,246,${0.04 + 0.08 * glowProgress})`);
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.globalAlpha = 0.4 * easeOutCubic(animationRange(progress, 0.05, 0.35));
+  ctx.strokeStyle = "rgba(255,255,255,0.11)";
+  ctx.lineWidth = 1;
+  const step = Math.round(width * 0.045);
+  const lineOffset = (1 - easeOutCubic(animationRange(progress, 0.05, 0.45))) * step * 2;
+  for (let x = -step * 2 + lineOffset; x < width + step; x += step) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + height * 0.35, height);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  const avatarIn = easeOutCubic(animationRange(progress, 0.12, 0.36));
+  const avatarPulse = Math.sin(Math.min(1, animationRange(progress, 0.25, 0.5)) * Math.PI) * 0.055;
+  const avatarX = width * 0.67 + (1 - avatarIn) * width * 0.12;
+  const avatarY = height * 0.28;
+  const avatarW = width * 0.29;
+  const avatarH = height * 0.59;
+  ctx.save();
+  ctx.globalAlpha = avatarIn;
+  ctx.shadowColor = "rgba(0,0,0,0.44)";
+  ctx.shadowBlur = 36;
+  ctx.shadowOffsetY = 18;
+  ctx.translate(avatarX + avatarW / 2, avatarY + avatarH / 2);
+  ctx.rotate((-3 + 3 * avatarIn) * Math.PI / 180);
+  const avatarScale = 0.92 + 0.08 * avatarIn + avatarPulse;
+  ctx.scale(avatarScale, avatarScale);
+  drawImageContain(ctx, data.image, -avatarW / 2, -avatarH / 2, avatarW, avatarH, imageState.offsetX * 0.25, imageState.offsetY * 0.25, imageState.scale);
+  ctx.restore();
+
+  const headerX = width * 0.07;
+  const headerY = height * 0.09;
+  const headerIn = easeOutCubic(animationRange(progress, 0.24, 0.42));
+  ctx.save();
+  ctx.globalAlpha = headerIn;
+  ctx.translate(0, 14 * (1 - headerIn));
+  setFont(ctx, 34, 800);
+  ctx.fillStyle = "rgba(255,255,255,0.72)";
+  drawLetterSpacedText(ctx, "OPC WEEKLY", headerX, headerY + 30, 6 + 8 * (1 - headerIn));
+  setFont(ctx, 55, 900);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(data.weekLabel || "2026-06-W3", headerX, headerY + 89);
+  ctx.restore();
+
+  const titleX = width * 0.07;
+  const titleY = height * 0.31;
+  const titleW = width * 0.56;
+  const titleIn = easeOutCubic(animationRange(progress, 0.42, 0.68));
+  const titleFit = fitRichText(ctx, data.title || "请输入主标题", {
+    maxWidth: titleW,
+    maxHeight: height * 0.34,
+    maxLines: 2,
+    maxSize: scaledTextSize(92, data.titleSize),
+    minSize: scaledMinTextSize(46, data.titleSize),
+    weight: 900,
+    lineHeight: 1.15,
+  });
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(titleX, titleY - 16, titleW * titleIn, height * 0.34 + 32);
+  ctx.clip();
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 6;
+  setFont(ctx, titleFit.size, 900);
+  drawRichTextLines(ctx, titleFit.lines, titleX, titleY + titleFit.size, titleFit.size, 1.15, "#ffffff");
+  ctx.restore();
+
+  const subtitleIn = easeOutCubic(animationRange(progress, 0.62, 0.82));
+  const subtitleFit = fitRichText(ctx, data.subtitle || "", {
+    maxWidth: width * 0.58,
+    maxHeight: height * 0.12,
+    maxLines: 2,
+    maxSize: scaledTextSize(42, data.subtitleSize),
+    minSize: scaledMinTextSize(28, data.subtitleSize),
+    weight: 700,
+    lineHeight: 1.3,
+  });
+  ctx.save();
+  ctx.globalAlpha = subtitleIn;
+  ctx.translate(0, 12 * (1 - subtitleIn));
+  setFont(ctx, subtitleFit.size, 700);
+  drawRichTextLines(ctx, subtitleFit.lines, titleX, height * 0.66 + subtitleFit.size, subtitleFit.size, 1.3, "rgba(255,255,255,0.78)");
+  ctx.restore();
+
+  const vignette = ctx.createRadialGradient(width / 2, height / 2, width * 0.2, width / 2, height / 2, width * 0.76);
+  vignette.addColorStop(0, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, "rgba(0,0,0,0.32)");
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.restore();
+}
+
+function renderTutorialOgAnimationFrame(ctx, frame, totalFrames, data) {
+  const { width, height } = ogVideoLayout;
+  const progress = frame / Math.max(1, totalFrames - 1);
+  const screenshotIn = easeOutCubic(animationRange(progress, 0.08, 0.42));
+  const textIn = easeOutCubic(animationRange(progress, 0.28, 0.6));
+  const stepsIn = easeOutCubic(animationRange(progress, 0.58, 0.88));
+  const imageState = data.imageState || defaultImageState("tutorial", "16x9");
+  const lessonNumber = clamp(Number(data.lessonNumber) || 3, 1, 99);
+  const lessonTotal = clamp(Number(data.lessonTotal) || 6, 1, 99);
+  const lessonSteps = Array.isArray(data.lessonSteps)
+    ? [data.lessonSteps[0] || "步骤 01", data.lessonSteps[1] || "步骤 02", data.lessonSteps[2] || "步骤 03"]
+    : ["需求拆解", "搭建工作流", "上线与复盘"];
+  const showSeriesProgress = data.showSeriesProgress !== false
+    && data.fieldsByType?.tutorial?.showSeriesProgress !== false;
+
+  ctx.clearRect(0, 0, width, height);
+  const bg = ctx.createLinearGradient(0, 0, width, height);
+  bg.addColorStop(0, "#08131a");
+  bg.addColorStop(0.55, "#111827");
+  bg.addColorStop(1, "#08090d");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, width, height);
+
+  const glow = ctx.createRadialGradient(width * 0.72, height * 0.48, 0, width * 0.72, height * 0.48, width * 0.5);
+  glow.addColorStop(0, "rgba(45,212,191,0.16)");
+  glow.addColorStop(0.45, "rgba(96,165,250,0.1)");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.globalAlpha = 0.28 * easeOutCubic(animationRange(progress, 0, 0.32));
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.lineWidth = 1;
+  const grid = 46;
+  const gridOffset = (1 - easeOutCubic(animationRange(progress, 0, 0.38))) * grid * 2;
+  for (let x = -grid; x < width + grid; x += grid) {
+    ctx.beginPath();
+    ctx.moveTo(x + gridOffset, 0);
+    ctx.lineTo(x + gridOffset, height);
+    ctx.stroke();
+  }
+  for (let y = -grid; y < height + grid; y += grid) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + gridOffset * 0.36);
+    ctx.lineTo(width, y + gridOffset * 0.36);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  const shot = {
+    x: width * (0.62 + (1 - screenshotIn) * 0.08),
+    y: height * 0.15,
+    w: height * 0.7 * 0.75,
+    h: height * 0.7,
+    radius: 28,
+  };
+  ctx.save();
+  ctx.globalAlpha = screenshotIn;
+  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowBlur = 44;
+  ctx.shadowOffsetY = 20;
+  roundedRectPath(ctx, shot.x, shot.y, shot.w, shot.h, shot.radius);
+  ctx.fillStyle = "#0b1018";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.17)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = screenshotIn;
+  clipRoundedRect(ctx, shot.x, shot.y, shot.w, shot.h, shot.radius);
+  if (data.image) {
+    drawImageCover(ctx, data.image, shot.x, shot.y, shot.w, shot.h, imageState.offsetX, imageState.offsetY, imageState.scale);
+  } else {
+    ctx.fillStyle = "#111b27";
+    ctx.fillRect(shot.x, shot.y, shot.w, shot.h);
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.lineWidth = 1;
+    for (let x = shot.x; x < shot.x + shot.w; x += 72) {
+      ctx.beginPath();
+      ctx.moveTo(x, shot.y);
+      ctx.lineTo(x, shot.y + shot.h);
+      ctx.stroke();
+    }
+    for (let y = shot.y; y < shot.y + shot.h; y += 72) {
+      ctx.beginPath();
+      ctx.moveTo(shot.x, y);
+      ctx.lineTo(shot.x + shot.w, y);
+      ctx.stroke();
+    }
+    setFont(ctx, 28, 800);
+    ctx.fillStyle = "rgba(255,255,255,0.46)";
+    ctx.fillText("上传 16:9 教程截图", shot.x + shot.w * 0.5 - 150, shot.y + shot.h * 0.52);
+  }
+  ctx.fillStyle = "rgba(3,8,14,0.16)";
+  ctx.fillRect(shot.x, shot.y, shot.w, shot.h);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = screenshotIn;
+  roundedRectPath(ctx, shot.x, shot.y, shot.w, 46, shot.radius);
+  ctx.fillStyle = "rgba(8,14,22,0.72)";
+  ctx.fill();
+  ["#fb7185", "#fbbf24", "#2dd4bf"].forEach((color, index) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(shot.x + 25 + index * 19, shot.y + 23, 5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = textIn;
+  ctx.translate(-18 * (1 - textIn), 0);
+  const textX = width * 0.055;
+  // Without the progress chips, center the information group slightly above mid-frame.
+  const textY = height * (showSeriesProgress ? 0.19 : 0.32);
+  const textW = shot.x - width * 0.1;
+  ctx.shadowColor = "rgba(0,0,0,0.42)";
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 5;
+  setFont(ctx, 25, 800);
+  ctx.fillStyle = "rgba(255,255,255,0.68)";
+  drawLetterSpacedText(ctx, "OPC TUTORIAL", textX, textY, 4);
+  setFont(ctx, 42, 900);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(`LESSON ${String(lessonNumber).padStart(2, "0")} / ${String(lessonTotal).padStart(2, "0")}`, textX, textY + 58);
+
+  const titleX = textX;
+  const titleY = textY + 84;
+  const titleW = textW;
+  const titleFit = fitRichText(ctx, data.title || "用 AI 做出一个可用的 MVP", {
+    maxWidth: titleW,
+    maxHeight: height * 0.23,
+    maxLines: 2,
+    maxSize: scaledTextSize(64, data.titleSize),
+    minSize: scaledMinTextSize(34, data.titleSize),
+    weight: 900,
+    lineHeight: 1.12,
+  });
+  setFont(ctx, titleFit.size, 900);
+  drawRichTextLines(ctx, titleFit.lines, titleX, titleY + titleFit.size, titleFit.size, 1.12, "#ffffff");
+
+  const subtitleFit = fitRichText(ctx, data.subtitle || "", {
+    maxWidth: titleW,
+    maxHeight: height * 0.1,
+    maxLines: 2,
+    maxSize: scaledTextSize(30, data.subtitleSize),
+    minSize: scaledMinTextSize(22, data.subtitleSize),
+    weight: 700,
+    lineHeight: 1.25,
+  });
+  setFont(ctx, subtitleFit.size, 700);
+  const titleBlockHeight = titleFit.lines.length * titleFit.size * 1.12;
+  drawRichTextLines(ctx, subtitleFit.lines, titleX, titleY + titleBlockHeight + subtitleFit.size * 1.7, subtitleFit.size, 1.25, "rgba(255,255,255,0.76)");
+  ctx.restore();
+
+  if (showSeriesProgress) {
+    const activeStep = clamp(lessonNumber, 1, lessonSteps.length) - 1;
+    const stepLeft = width * 0.055;
+    const stepRight = shot.x - width * 0.03;
+    const stepGap = 14;
+    let cursorX = stepLeft;
+    let cursorY = height * 0.72;
+    let rowHeight = 46;
+
+    lessonSteps.forEach((label, index) => {
+      setFont(ctx, 16, 800);
+      const maxStepWidth = stepRight - stepLeft;
+      const preferredWidth = clamp(ctx.measureText(label).width + 70, 150, Math.min(280, maxStepWidth));
+      const labelFit = fitRichText(ctx, label, {
+        maxWidth: preferredWidth - 62,
+        maxHeight: 38,
+        maxLines: 2,
+        maxSize: 16,
+        minSize: 12,
+        weight: 800,
+        lineHeight: 1.1,
+      });
+      const stepHeight = labelFit.lines.length > 1 ? 62 : 46;
+      if (cursorX > stepLeft && cursorX + preferredWidth > stepRight) {
+        cursorX = stepLeft;
+        cursorY += rowHeight + 12;
+        rowHeight = 46;
+      }
+      rowHeight = Math.max(rowHeight, stepHeight);
+      const stepIn = easeOutCubic(animationRange(progress, 0.48 + index * 0.08, 0.66 + index * 0.08));
+      ctx.save();
+      ctx.globalAlpha = stepIn * stepsIn;
+      roundedRectPath(ctx, cursorX, cursorY, preferredWidth, stepHeight, 8);
+      ctx.fillStyle = index === activeStep ? "rgba(45,212,191,0.26)" : "rgba(7,13,21,0.7)";
+      ctx.fill();
+      ctx.strokeStyle = index === activeStep ? "rgba(94,234,212,0.76)" : "rgba(255,255,255,0.14)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      setFont(ctx, 15, 900);
+      ctx.fillStyle = index === activeStep ? "#5eead4" : "rgba(255,255,255,0.56)";
+      ctx.fillText(String(index + 1).padStart(2, "0"), cursorX + 16, cursorY + 29);
+      setFont(ctx, labelFit.size, 800);
+      ctx.fillStyle = index === activeStep ? "#ffffff" : "rgba(255,255,255,0.84)";
+      drawRichTextLines(ctx, labelFit.lines, cursorX + 52, cursorY + (stepHeight === 62 ? 25 : 29), labelFit.size, 1.1, ctx.fillStyle);
+      ctx.restore();
+      cursorX += preferredWidth + stepGap;
+    });
+  }
+}
+
 function renderTutorial(ctx, layout, data) {
   const { image, imageState, title, subtitle, titleSize, subtitleSize } = data;
   fillBase(ctx, layout);
@@ -952,16 +1587,20 @@ function fitMainCanvasToStage() {
   els.mainCanvas.style.height = `${Math.floor(els.mainCanvas.height * scale)}px`;
 }
 
-function renderCombinedCanvas(canvas16x9, canvas4x3, canvas3x4) {
+function renderCombinedCanvas(renderedCanvases) {
+  const canvases = availableLayoutKeys().map((key) => renderedCanvases[key]).filter(Boolean);
+  const gap = 0;
   const combined = document.createElement("canvas");
-  combined.width = 1440;
-  combined.height = 3330;
+  combined.width = Math.max(...canvases.map((canvas) => canvas.width));
+  combined.height = canvases.reduce((total, canvas) => total + canvas.height, 0) + Math.max(0, canvases.length - 1) * gap;
   const ctx = combined.getContext("2d");
   ctx.fillStyle = "#050505";
   ctx.fillRect(0, 0, combined.width, combined.height);
-  ctx.drawImage(canvas16x9, 0, 0);
-  ctx.drawImage(canvas4x3, 0, 810);
-  ctx.drawImage(canvas3x4, (1440 - 1080) / 2, 810 + 1080);
+  let y = 0;
+  canvases.forEach((canvas) => {
+    ctx.drawImage(canvas, (combined.width - canvas.width) / 2, y);
+    y += canvas.height + gap;
+  });
   return combined;
 }
 
@@ -979,15 +1618,165 @@ function downloadCanvas(canvas, filename) {
   }, "image/png");
 }
 
-function getRenderedSet() {
-  return {
-    "16x9": renderCover(state.type, "16x9", state),
-    "4x3": renderCover(state.type, "4x3", state),
-    "3x4": renderCover(state.type, "3x4", state),
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function supportedVideoMimeType() {
+  if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== "function") {
+    return "";
+  }
+
+  return [
+    'video/mp4;codecs="avc1.42E01E"',
+    "video/mp4;codecs=avc1.42E01E",
+    "video/mp4",
+    'video/webm;codecs="vp9"',
+    'video/webm;codecs="vp8"',
+    "video/webm",
+  ].find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function ogVideoFilename(mimeType) {
+  const extension = mimeType.includes("mp4") ? "mp4" : "webm";
+  if (state.type === "weekly") {
+    const week = String(state.weekLabel || "weekly").trim().replace(/[\\/:*?"<>|\s]+/g, "-") || "weekly";
+    return `opc-weekly-${week}.${extension}`;
+  }
+  const title = String(state.title || "tutorial").trim().replace(/[\\/:*?"<>|\s]+/g, "-") || "tutorial";
+  return `opc-tutorial-og-${title}.${extension}`;
+}
+
+function setOgVideoExportProgress(percent) {
+  if (!els.downloadOgVideoButton) return;
+  const label = percent >= 100 ? "正在生成文件..." : `正在导出 ${Math.max(0, Math.min(99, Math.round(percent)))}%`;
+  els.downloadOgVideoButton.textContent = label;
+}
+
+function setOgVideoExporting(isExporting) {
+  state.isExportingOgVideo = isExporting;
+  if (els.downloadOgVideoButton) {
+    els.downloadOgVideoButton.disabled = isExporting || !ogVideoTypes.has(state.type);
+    els.downloadOgVideoButton.textContent = isExporting ? "正在导出 0%" : "导出 OG Video MP4";
+  }
+  [els.downloadCombinedButton, els.download16x9Button, els.download21x9Button, els.download5x2Button, els.download4x3Button, els.download3x4Button].forEach((button) => {
+    if (!button) return;
+    button.disabled = isExporting || !state.image;
+  });
+}
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function renderOgVideoFrame(ctx, frame, totalFrames, data) {
+  if (data.type === "weekly") renderWeeklyAnimationFrame(ctx, frame, totalFrames, data);
+  if (data.type === "tutorial") renderTutorialOgAnimationFrame(ctx, frame, totalFrames, data);
+}
+
+async function exportOgVideo() {
+  if (!ogVideoTypes.has(state.type) || state.isExportingOgVideo) return;
+  if (!HTMLCanvasElement.prototype.captureStream || !window.MediaRecorder) {
+    setMessage("当前浏览器不支持前端视频导出，请使用最新版 Chrome");
+    return;
+  }
+
+  const mimeType = supportedVideoMimeType();
+  if (!mimeType) {
+    setMessage("当前浏览器不支持前端视频编码，请使用最新版 Chrome");
+    return;
+  }
+
+  const layout = ogVideoLayout;
+  const { fps, duration } = ogVideoLayout;
+  const totalFrames = Math.round(fps * duration);
+  const frameInterval = 1000 / fps;
+  const canvas = document.createElement("canvas");
+  canvas.width = layout.width;
+  canvas.height = layout.height;
+  const ctx = canvas.getContext("2d");
+  const stream = canvas.captureStream(0);
+  const [track] = stream.getVideoTracks();
+  const chunks = [];
+  const recorderOptions = {
+    mimeType,
+    videoBitsPerSecond: 7_000_000,
   };
+  const data = {
+    ...state,
+    image: state.image,
+    imageState: { ...getImageState(imageAdjustmentLayoutKey(), state.type) },
+  };
+
+  setMessage("");
+  setOgVideoExporting(true);
+
+  try {
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+
+    const recorder = new MediaRecorder(stream, recorderOptions);
+    recorder.ondataavailable = (event) => {
+      if (event.data?.size) chunks.push(event.data);
+    };
+
+    const finished = new Promise((resolve, reject) => {
+      recorder.onstop = resolve;
+      recorder.onerror = () => reject(recorder.error || new Error("视频导出失败"));
+    });
+
+    recorder.start();
+    const startedAt = performance.now();
+    for (let frame = 0; frame < totalFrames; frame += 1) {
+      renderOgVideoFrame(ctx, frame, totalFrames, data);
+      track.requestFrame();
+      setOgVideoExportProgress((frame / totalFrames) * 100);
+      const nextFrameAt = startedAt + (frame + 1) * frameInterval;
+      await wait(Math.max(0, nextFrameAt - performance.now()));
+    }
+    renderOgVideoFrame(ctx, totalFrames - 1, totalFrames, data);
+    track.requestFrame();
+    setOgVideoExportProgress(100);
+    await wait(120);
+    recorder.stop();
+    await finished;
+    track.stop();
+
+    const blob = new Blob(chunks, { type: mimeType });
+    if (!blob.size) {
+      throw new Error("视频文件为空");
+    }
+    downloadBlob(blob, ogVideoFilename(mimeType));
+    if (!mimeType.includes("mp4")) {
+      setMessage("当前浏览器未开放 MP4 编码，已导出 WEBM");
+    }
+  } catch (error) {
+    track.stop();
+    setMessage(error?.message || "视频导出失败，请重试");
+  } finally {
+    setOgVideoExporting(false);
+    renderAll();
+  }
+}
+
+function getRenderedSet() {
+  return availableLayoutKeys().reduce((rendered, key) => {
+    rendered[key] = renderCover(state.type, key, state);
+    return rendered;
+  }, {});
 }
 
 function updateOutputs() {
+  ensureActiveLayout();
+  const isOgVideo = state.outputMode === "og-video" && ogVideoTypes.has(state.type);
   const activeImageState = getActiveImageState();
   els.scaleInput.value = activeImageState.scale;
   els.offsetXInput.value = activeImageState.offsetX;
@@ -1001,31 +1790,115 @@ function updateOutputs() {
   els.subtitleSizeOutput.value = `${Math.round(state.subtitleSize)}%`;
   els.weekField.hidden = state.type !== "weekly";
   els.weeklyLibraryField.hidden = state.type !== "weekly";
+  els.tutorialSeriesField.hidden = state.type !== "tutorial";
+  els.imageLabel.textContent = state.type === "tutorial" ? "教程截图（16:9）" : "参考图";
+  els.uploadText.textContent = state.type === "tutorial" && !state.imageName
+    ? "上传 16:9 PNG / JPG / WEBP"
+    : (state.imageName ? state.imageName : "上传 PNG / JPG / WEBP");
   els.safeAreaButton.textContent = state.showSafeArea ? "隐藏安全区" : "显示安全区";
   els.safeAreaButton.setAttribute("aria-pressed", String(state.showSafeArea));
+  els.coverLayoutTabs.hidden = isOgVideo;
+  els.coverPreviewList.hidden = isOgVideo;
+  els.ogVideoPanel.hidden = !isOgVideo;
+  els.videoControls.hidden = !isOgVideo;
+  els.canvasTitle.textContent = isOgVideo ? "OG Video 预览" : "当前主画布";
 
   const activeLayout = layouts[state.type][state.activeLayout];
-  els.activeLayoutLabel.textContent = `${activeLayout.label} · ${activeLayout.width} × ${activeLayout.height}`;
-  els.adjustLayoutLabel.textContent = `当前：${activeLayout.label}`;
+  const imageLayoutKey = imageAdjustmentLayoutKey();
+  const imageLayout = layouts[state.type][imageLayoutKey];
+  els.activeLayoutLabel.textContent = isOgVideo
+    ? "16:9 · 1440 × 810 · 3.6 秒循环"
+    : `${activeLayout.label} · ${activeLayout.width} × ${activeLayout.height}`;
+  els.adjustLayoutLabel.textContent = state.type === "tutorial" && state.outputMode === "og-video"
+    ? "当前：3:4 OG 截图"
+    : `当前：${activeLayout.label}`;
 
   document.querySelectorAll(".type-button").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.type === state.type);
   });
+  document.querySelectorAll(".output-tab").forEach((button) => {
+    const available = button.dataset.outputMode === "cover" || ogVideoTypes.has(state.type);
+    button.hidden = !available;
+    button.classList.toggle("is-active", button.dataset.outputMode === state.outputMode);
+  });
   document.querySelectorAll(".layout-tab, .preview-card, .adjust-layout-button").forEach((item) => {
-    item.classList.toggle("is-active", item.dataset.layout === state.activeLayout);
+    const layoutAvailable = isLayoutAvailable(item.dataset.layout);
+    const isOgTutorialAdjuster = state.type === "tutorial" && state.outputMode === "og-video" && item.classList.contains("adjust-layout-button");
+    item.hidden = !layoutAvailable || (isOgTutorialAdjuster && item.dataset.layout !== "3x4");
+    item.classList.toggle("is-active", layoutAvailable && item.dataset.layout === (isOgTutorialAdjuster ? imageLayout.key : state.activeLayout));
   });
 
   const hasImage = Boolean(state.image);
-  els.emptyState.classList.toggle("is-hidden", hasImage);
-  [els.downloadCombinedButton, els.download16x9Button, els.download4x3Button, els.download3x4Button].forEach((button) => {
-    button.disabled = !hasImage;
+  const ogCanRenderWithoutImage = state.type === "tutorial";
+  els.emptyState.classList.toggle("is-hidden", isOgVideo ? ogCanRenderWithoutImage || hasImage : hasImage);
+  if (els.downloadOgVideoButton) {
+    const mimeType = supportedVideoMimeType();
+    const mp4Available = mimeType.includes("mp4");
+    els.downloadOgVideoButton.disabled = state.isExportingOgVideo || !isOgVideo;
+    els.downloadOgVideoButton.textContent = state.isExportingOgVideo ? "正在导出 0%" : `导出 OG Video ${mp4Available ? "MP4" : "WEBM"}`;
+    els.videoFormatStatus.textContent = mp4Available ? "MP4" : "WEBM";
+    els.videoFormatMessage.textContent = mimeType
+      ? (mp4Available ? "浏览器将优先导出 MP4。" : "当前浏览器将导出 WEBM。")
+      : "当前浏览器不支持前端视频编码。";
+  }
+  els.toggleVideoPreviewButton.textContent = state.ogPreview.playing ? "||" : ">";
+  els.toggleVideoPreviewButton.setAttribute("aria-label", state.ogPreview.playing ? "暂停动画" : "播放动画");
+  els.toggleVideoPreviewButton.title = state.ogPreview.playing ? "暂停动画" : "播放动画";
+  [
+    els.downloadCombinedButton,
+    els.download16x9Button,
+    els.download21x9Button,
+    els.download5x2Button,
+    els.download4x3Button,
+    els.download3x4Button,
+  ].forEach((button) => {
+    if (!button) return;
+    const layoutKey = button.dataset.layout;
+    const layoutAvailable = !layoutKey || isLayoutAvailable(layoutKey);
+    button.hidden = isOgVideo || !layoutAvailable;
+    button.disabled = state.isExportingOgVideo || !hasImage || !layoutAvailable;
   });
+}
+
+function renderOgPreviewFrame(now) {
+  if (state.outputMode !== "og-video" || !ogVideoTypes.has(state.type)) {
+    state.ogPreview.frameId = 0;
+    return;
+  }
+  if (!state.ogPreview.startedAt) state.ogPreview.startedAt = now - state.ogPreview.elapsed;
+  if (state.ogPreview.playing) state.ogPreview.elapsed = (now - state.ogPreview.startedAt) % (ogVideoLayout.duration * 1000);
+  const totalFrames = Math.round(ogVideoLayout.fps * ogVideoLayout.duration);
+  const frame = Math.floor((state.ogPreview.elapsed / 1000) * ogVideoLayout.fps) % totalFrames;
+  els.mainCanvas.width = ogVideoLayout.width;
+  els.mainCanvas.height = ogVideoLayout.height;
+  renderOgVideoFrame(els.mainCanvas.getContext("2d"), frame, totalFrames, {
+    ...state,
+    imageState: { ...getImageState(imageAdjustmentLayoutKey(), state.type) },
+  });
+  fitMainCanvasToStage();
+  state.ogPreview.frameId = window.requestAnimationFrame(renderOgPreviewFrame);
+}
+
+function restartOgPreview() {
+  state.ogPreview.elapsed = 0;
+  state.ogPreview.startedAt = performance.now();
+  state.ogPreview.playing = true;
+}
+
+function ensureOgPreviewLoop() {
+  if (state.outputMode !== "og-video" || !ogVideoTypes.has(state.type)) return;
+  if (!state.ogPreview.frameId) state.ogPreview.frameId = window.requestAnimationFrame(renderOgPreviewFrame);
 }
 
 function renderAll() {
   updateOutputs();
 
-  ["16x9", "4x3", "3x4"].forEach((key) => {
+  if (state.outputMode === "og-video" && ogVideoTypes.has(state.type)) {
+    ensureOgPreviewLoop();
+    return;
+  }
+
+  availableLayoutKeys().forEach((key) => {
     const canvas = renderCover(state.type, key, state);
     copyCanvas(canvas, previewCanvases[key]);
   });
@@ -1065,18 +1938,14 @@ function escapeHtml(value) {
 
 function setCurrentImage(image, name, type = state.type) {
   const nextImageState = { image, name };
-  if (type === "talking-head" || type === "tutorial") {
-    state.imagesByType["talking-head"] = nextImageState;
-    state.imagesByType.tutorial = nextImageState;
-  } else {
-    state.imagesByType[type] = nextImageState;
-  }
+  state.imagesByType[type] = nextImageState;
 
   if (state.type === type) {
     state.image = image;
     state.imageName = name;
     els.uploadText.textContent = name || "上传 PNG / JPG / WEBP";
   }
+  persistDraftState();
 }
 
 function loadImageFromSource(src, name, type = state.type) {
@@ -1094,11 +1963,14 @@ function openWeeklyImageDb() {
   }
 
   return new Promise((resolve, reject) => {
-    const request = window.indexedDB.open(weeklyImageDbName, 1);
+    const request = window.indexedDB.open(weeklyImageDbName, 2);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(weeklyImageStoreName)) {
         db.createObjectStore(weeklyImageStoreName, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(draftImageStoreName)) {
+        db.createObjectStore(draftImageStoreName, { keyPath: "type" });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -1146,6 +2018,48 @@ function deleteWeeklyImageRecord(id) {
   return weeklyImageStore("readwrite", (store) => store.delete(id));
 }
 
+function draftImageStore(mode, callback) {
+  return openWeeklyImageDb().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction(draftImageStoreName, mode);
+    const store = tx.objectStore(draftImageStoreName);
+    const request = callback(store);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => db.close();
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
+    };
+  }));
+}
+
+function saveDraftImageRecord(type, file) {
+  if (!typeKeys.includes(type)) return Promise.resolve();
+  return draftImageStore("readwrite", (store) => store.put({
+    type,
+    name: file.name || "参考图",
+    blob: file,
+    updatedAt: Date.now(),
+  }));
+}
+
+function loadDraftImages() {
+  return draftImageStore("readonly", (store) => store.getAll())
+    .then((records) => Promise.all(records.map((record) => (
+      loadImageFromBlob(record.blob)
+        .then((image) => {
+          if (typeKeys.includes(record.type)) {
+            state.imagesByType[record.type] = {
+              image,
+              name: record.name || "参考图",
+            };
+          }
+        })
+        .catch(() => null)
+    ))))
+    .catch(() => null);
+}
+
 function weeklyImageItems() {
   return [
     {
@@ -1177,6 +2091,7 @@ function renderWeeklyImageLibrary() {
 
 function selectWeeklyDefaultImage() {
   state.weeklySelectedImageId = weeklyDefaultImageId;
+  persistDraftState();
   return loadImageFromSource(weeklyDefaultImageSrc, "默认周报贴纸", "weekly").then(() => {
     renderWeeklyImageLibrary();
   });
@@ -1196,6 +2111,7 @@ function selectWeeklyLibraryImage(id) {
       state.weeklySelectedImageId = id;
       setCurrentImage(image, item.name || "周报图", "weekly");
       setMessage("");
+      persistDraftState();
       renderWeeklyImageLibrary();
       renderAll();
     })
@@ -1222,6 +2138,7 @@ function saveWeeklyImageFile(file) {
       state.weeklySelectedImageId = id;
       setCurrentImage(image, record.name, "weekly");
       setMessage("");
+      persistDraftState();
       renderWeeklyImageLibrary();
       renderAll();
     })
@@ -1260,6 +2177,14 @@ function ensureWeeklyImage() {
     return;
   }
 
+  if (state.weeklySelectedImageId && state.weeklySelectedImageId !== weeklyDefaultImageId) {
+    const item = state.weeklyImageLibrary.find((entry) => entry.id === state.weeklySelectedImageId);
+    if (item) {
+      selectWeeklyLibraryImage(item.id);
+      return;
+    }
+  }
+
   try {
     window.localStorage.removeItem(legacyWeeklyImageCacheKey);
   } catch {
@@ -1278,18 +2203,20 @@ function updateImageStateFromInputs() {
   if (!state.imageStates[state.type]) {
     state.imageStates[state.type] = {};
   }
-  state.imageStates[state.type][state.activeLayout] = {
+  state.imageStates[state.type][imageAdjustmentLayoutKey()] = {
     scale: Number(els.scaleInput.value),
     offsetX: Number(els.offsetXInput.value),
     offsetY: Number(els.offsetYInput.value),
   };
+  persistDraftState();
 }
 
 function setImageState(next) {
   if (!state.imageStates[state.type]) {
     state.imageStates[state.type] = {};
   }
-  state.imageStates[state.type][state.activeLayout] = { ...getActiveImageState(), ...next };
+  state.imageStates[state.type][imageAdjustmentLayoutKey()] = { ...getActiveImageState(), ...next };
+  persistDraftState();
   renderAll();
 }
 
@@ -1305,13 +2232,17 @@ function loadImageFile(file) {
     return;
   }
 
+  const targetType = state.type;
   const reader = new FileReader();
   reader.onload = () => {
     const image = new Image();
     image.onload = () => {
-      setCurrentImage(image, file.name);
+      setCurrentImage(image, file.name, targetType);
+      saveDraftImageRecord(targetType, file).catch(() => {
+        setMessage("图片已加载，但浏览器未能保存草稿图片");
+      });
       setMessage("");
-      renderAll();
+      if (state.type === targetType) renderAll();
     };
     image.onerror = () => setMessage("图片加载失败，请重新上传");
     image.src = reader.result;
@@ -1322,19 +2253,22 @@ function loadImageFile(file) {
 
 document.querySelectorAll(".type-button").forEach((button) => {
   button.addEventListener("click", () => {
-    state.type = button.dataset.type;
-    if (state.type === "weekly") {
-      ensureWeeklyImage();
-      return;
-    }
-    syncImageForType();
-    renderAll();
+    switchType(button.dataset.type);
+  });
+});
+
+document.querySelectorAll(".output-tab").forEach((button) => {
+  button.addEventListener("click", () => {
+    switchOutputMode(button.dataset.outputMode);
   });
 });
 
 document.querySelectorAll(".layout-tab, .preview-card, .adjust-layout-button").forEach((item) => {
   item.addEventListener("click", () => {
+    if (!isLayoutAvailable(item.dataset.layout)) return;
     state.activeLayout = item.dataset.layout;
+    state.activeLayoutsByType[state.type] = state.activeLayout;
+    persistDraftState();
     renderAll();
   });
 });
@@ -1369,28 +2303,97 @@ els.weeklyImageGrid.addEventListener("keydown", (event) => {
 
 els.titleInput.addEventListener("input", () => {
   state.title = els.titleInput.value;
+  state.fieldsByType[state.type] = {
+    ...defaultFieldsForType(state.type),
+    title: state.title,
+  };
+  persistDraftState();
   renderAll();
 });
 
 els.subtitleInput.addEventListener("input", () => {
   state.subtitle = els.subtitleInput.value;
+  state.fieldsByType[state.type] = {
+    ...defaultFieldsForType(state.type),
+    subtitle: state.subtitle,
+  };
+  persistDraftState();
   renderAll();
 });
 
 els.titleSizeInput.addEventListener("input", () => {
   state.titleSize = Number(els.titleSizeInput.value);
+  state.fieldsByType[state.type] = {
+    ...defaultFieldsForType(state.type),
+    titleSize: state.titleSize,
+  };
+  persistDraftState();
   renderAll();
 });
 
 els.subtitleSizeInput.addEventListener("input", () => {
   state.subtitleSize = Number(els.subtitleSizeInput.value);
+  state.fieldsByType[state.type] = {
+    ...defaultFieldsForType(state.type),
+    subtitleSize: state.subtitleSize,
+  };
+  persistDraftState();
   renderAll();
 });
 
 els.weekInput.addEventListener("input", () => {
   state.weekLabel = els.weekInput.value;
+  state.fieldsByType[state.type] = {
+    ...defaultFieldsForType(state.type),
+    weekLabel: state.weekLabel,
+  };
+  persistDraftState();
   renderAll();
 });
+
+[els.lessonNumberInput, els.lessonTotalInput].forEach((input) => {
+  input.addEventListener("input", () => {
+    const lessonNumber = clamp(Number(els.lessonNumberInput.value) || 1, 1, 99);
+    const lessonTotal = clamp(Number(els.lessonTotalInput.value) || 1, 1, 99);
+    state.fieldsByType.tutorial = {
+      ...defaultFieldsForType("tutorial"),
+      lessonNumber,
+      lessonTotal: Math.max(lessonNumber, lessonTotal),
+    };
+    if (state.type === "tutorial") applyFieldsForType("tutorial");
+    persistDraftState();
+    renderAll();
+  });
+});
+
+[els.lessonStep1Input, els.lessonStep2Input, els.lessonStep3Input].forEach((input) => {
+  input.addEventListener("input", () => {
+    state.fieldsByType.tutorial = {
+      ...defaultFieldsForType("tutorial"),
+      lessonSteps: [
+        els.lessonStep1Input.value.trim() || "步骤 01",
+        els.lessonStep2Input.value.trim() || "步骤 02",
+        els.lessonStep3Input.value.trim() || "步骤 03",
+      ],
+    };
+    if (state.type === "tutorial") applyFieldsForType("tutorial");
+    persistDraftState();
+    renderAll();
+  });
+});
+
+function syncSeriesProgressVisibility() {
+  state.fieldsByType.tutorial = {
+    ...defaultFieldsForType("tutorial"),
+    showSeriesProgress: els.showSeriesProgressInput.checked,
+  };
+  if (state.type === "tutorial") applyFieldsForType("tutorial");
+  persistDraftState();
+  renderAll();
+}
+
+els.showSeriesProgressInput.addEventListener("input", syncSeriesProgressVisibility);
+els.showSeriesProgressInput.addEventListener("change", syncSeriesProgressVisibility);
 
 [els.scaleInput, els.offsetXInput, els.offsetYInput].forEach((input) => {
   input.addEventListener("input", () => {
@@ -1403,7 +2406,9 @@ els.resetImageButton.addEventListener("click", () => {
   if (!state.imageStates[state.type]) {
     state.imageStates[state.type] = {};
   }
-  state.imageStates[state.type][state.activeLayout] = defaultImageState(state.type, state.activeLayout);
+  const imageLayoutKey = imageAdjustmentLayoutKey();
+  state.imageStates[state.type][imageLayoutKey] = defaultImageState(state.type, imageLayoutKey);
+  persistDraftState();
   renderAll();
 });
 
@@ -1416,6 +2421,14 @@ els.download16x9Button.addEventListener("click", () => {
   downloadCanvas(renderCover(state.type, "16x9", state), "video-cover-16x9.png");
 });
 
+els.download21x9Button.addEventListener("click", () => {
+  downloadCanvas(renderCover(state.type, "21x9", state), "video-cover-2.35x1.png");
+});
+
+els.download5x2Button.addEventListener("click", () => {
+  downloadCanvas(renderCover(state.type, "5x2", state), "video-cover-5x2.png");
+});
+
 els.download4x3Button.addEventListener("click", () => {
   downloadCanvas(renderCover(state.type, "4x3", state), "video-cover-4x3.png");
 });
@@ -1426,12 +2439,41 @@ els.download3x4Button.addEventListener("click", () => {
 
 els.downloadCombinedButton.addEventListener("click", () => {
   const rendered = getRenderedSet();
-  downloadCanvas(renderCombinedCanvas(rendered["16x9"], rendered["4x3"], rendered["3x4"]), "video-cover-combined.png");
+  downloadCanvas(renderCombinedCanvas(rendered), "video-cover-combined.png");
+});
+
+els.downloadOgVideoButton.addEventListener("click", () => {
+  exportOgVideo();
+});
+
+els.toggleVideoPreviewButton.addEventListener("click", () => {
+  if (state.outputMode !== "og-video") return;
+  if (state.ogPreview.playing) {
+    state.ogPreview.elapsed = (performance.now() - state.ogPreview.startedAt) % (ogVideoLayout.duration * 1000);
+    state.ogPreview.playing = false;
+  } else {
+    state.ogPreview.startedAt = performance.now() - state.ogPreview.elapsed;
+    state.ogPreview.playing = true;
+  }
+  renderAll();
+});
+
+els.restartVideoPreviewButton.addEventListener("click", () => {
+  restartOgPreview();
+  renderAll();
 });
 
 let dragStart = null;
 els.mainCanvas.addEventListener("pointerdown", (event) => {
-  if (!state.image) return;
+  const canAdjustOgTutorial = state.outputMode === "og-video" && state.type === "tutorial";
+  if ((!canAdjustOgTutorial && state.outputMode !== "cover") || !state.image) return;
+  if (canAdjustOgTutorial) {
+    const rect = els.mainCanvas.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
+    const screenshotWidth = (ogVideoLayout.height * 0.7 * 0.75) / ogVideoLayout.width;
+    if (x < 0.62 || x > 0.62 + screenshotWidth || y < 0.15 || y > 0.85) return;
+  }
   els.mainCanvas.setPointerCapture(event.pointerId);
   dragStart = {
     x: event.clientX,
@@ -1467,6 +2509,21 @@ if (window.ResizeObserver) {
   window.addEventListener("resize", fitMainCanvasToStage);
 }
 
-renderWeeklyImageLibrary();
-loadWeeklyImageLibrary();
-renderAll();
+async function initializeApp() {
+  restoreDraftState();
+  ensureActiveLayout();
+  applyFieldsForType(state.type);
+  renderWeeklyImageLibrary();
+  await Promise.all([
+    loadWeeklyImageLibrary(),
+    loadDraftImages(),
+  ]);
+  syncImageForType();
+  if (state.type === "weekly") {
+    ensureWeeklyImage();
+  } else {
+    renderAll();
+  }
+}
+
+initializeApp();
