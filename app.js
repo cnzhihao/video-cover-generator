@@ -6,7 +6,7 @@ const weeklyImageStoreName = "weekly-images";
 const draftImageStoreName = "draft-images";
 const draftStorageKey = "video-cover-generator.draft.v2";
 const legacyWeeklyImageCacheKey = "video-cover-generator.weekly-image";
-const typeKeys = ["talking-head", "weekly", "tutorial"];
+const typeKeys = ["talking-head", "weekly", "tutorial", "article"];
 const ogVideoTypes = new Set(["weekly", "tutorial"]);
 const ogVideoLayout = { width: 1440, height: 810, fps: 30, duration: 3.6 };
 const defaultImageStatesByType = {
@@ -18,6 +18,13 @@ const defaultImageStatesByType = {
     "3x4": { scale: 1, offsetX: 0, offsetY: 0 },
   },
   weekly: {
+    "16x9": { scale: 1, offsetX: 186, offsetY: -160 },
+    "21x9": { scale: 1, offsetX: 120, offsetY: -120 },
+    "5x2": { scale: 1, offsetX: 100, offsetY: -110 },
+    "4x3": { scale: 1, offsetX: 246, offsetY: 193 },
+    "3x4": { scale: 1, offsetX: 288, offsetY: -300 },
+  },
+  article: {
     "16x9": { scale: 1, offsetX: 186, offsetY: -160 },
     "21x9": { scale: 1, offsetX: 120, offsetY: -120 },
     "5x2": { scale: 1, offsetX: 100, offsetY: -110 },
@@ -146,6 +153,7 @@ const layouts = {
     },
   },
 };
+layouts.article = layouts.weekly;
 
 const state = {
   type: "talking-head",
@@ -155,6 +163,7 @@ const state = {
     "talking-head": "16x9",
     weekly: "16x9",
     tutorial: "16x9",
+    article: "16x9",
   },
   image: null,
   imageName: "",
@@ -162,6 +171,7 @@ const state = {
     "talking-head": { image: null, name: "" },
     weekly: { image: null, name: "" },
     tutorial: { image: null, name: "" },
+    article: { image: null, name: "" },
   },
   title: "用一个系统跑通内容生产",
   subtitle: "从选题到发布的可复用工作流",
@@ -202,6 +212,17 @@ const state = {
       lessonSteps: ["需求拆解", "搭建工作流", "上线与复盘"],
       showSeriesProgress: true,
     },
+    article: {
+      title: "用一个系统跑通内容生产",
+      subtitle: "从选题到发布的可复用工作流",
+      titleSize: 100,
+      subtitleSize: 100,
+      weekLabel: "",
+      lessonNumber: 3,
+      lessonTotal: 6,
+      lessonSteps: ["需求拆解", "搭建工作流", "上线与复盘"],
+      showSeriesProgress: true,
+    },
   },
   weeklyImageLibrary: [],
   weeklySelectedImageId: weeklyDefaultImageId,
@@ -209,6 +230,7 @@ const state = {
     "talking-head": {},
     weekly: {},
     tutorial: {},
+    article: {},
   },
   showSafeArea: false,
   isExportingOgVideo: false,
@@ -407,6 +429,7 @@ function restoreDraftState() {
         "talking-head": draft.imageStates["talking-head"] || {},
         weekly: draft.imageStates.weekly || {},
         tutorial: draft.imageStates.tutorial || {},
+        article: draft.imageStates.article || {},
       };
     }
     if (draft.weeklySelectedImageId) {
@@ -435,8 +458,8 @@ function switchType(type) {
   applyFieldsForType(type);
   syncImageForType();
   persistDraftState();
-  if (state.type === "weekly") {
-    ensureWeeklyImage();
+  if (state.type === "weekly" || state.type === "article") {
+    ensureWeeklyImage(state.type);
     return;
   }
   renderAll();
@@ -966,7 +989,7 @@ function renderTalkingHead(ctx, layout, data) {
   ctx.shadowColor = "transparent";
 }
 
-function renderWeekly(ctx, layout, data) {
+function renderWeekly(ctx, layout, data, options = {}) {
   const { image, imageState, title, subtitle, titleSize: titleSizePercent, subtitleSize, weekLabel } = data;
   const bg = ctx.createLinearGradient(0, 0, layout.width, layout.height);
   bg.addColorStop(0, "#0b1020");
@@ -1001,13 +1024,15 @@ function renderWeekly(ctx, layout, data) {
   const baseTitleSize = clamp(layout.width * 0.076, 72, 118);
   const headerSize = layout.key === "3x4" ? baseTitleSize * 1.5 : baseTitleSize;
 
-  setFont(ctx, Math.round(headerSize * 0.31), 800);
-  ctx.fillStyle = "rgba(255,255,255,0.72)";
-  drawLetterSpacedText(ctx, "OPC WEEKLY", header.x, header.y + headerSize * 0.28, Math.max(5, layout.width * 0.004));
+  if (options.showWeekMarker !== false) {
+    setFont(ctx, Math.round(headerSize * 0.31), 800);
+    ctx.fillStyle = "rgba(255,255,255,0.72)";
+    drawLetterSpacedText(ctx, "OPC WEEKLY", header.x, header.y + headerSize * 0.28, Math.max(5, layout.width * 0.004));
 
-  setFont(ctx, Math.round(headerSize * 0.5), 900);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(weekLabel || "2026-06-W3", header.x, header.y + headerSize * 0.82);
+    setFont(ctx, Math.round(headerSize * 0.5), 900);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(weekLabel || "2026-06-W3", header.x, header.y + headerSize * 0.82);
+  }
 
   const titleLineHeight = 1.15;
   const subLineHeight = 1.3;
@@ -1526,8 +1551,8 @@ function drawSafeAreas(ctx, layout) {
   if (state.type === "talking-head") {
     drawBox(layout.textBox, "文字安全区", "rgba(45,212,191,0.85)");
     drawBox(layout.subjectBox || layout.imageBox, "图片主体区", "rgba(96,165,250,0.85)");
-  } else if (state.type === "weekly") {
-    drawBox(layout.headerBox, "栏目区", "rgba(45,212,191,0.85)");
+  } else if (state.type === "weekly" || state.type === "article") {
+    if (state.type === "weekly") drawBox(layout.headerBox, "栏目区", "rgba(45,212,191,0.85)");
     drawBox(layout.titleBox, "主标题区", "rgba(96,165,250,0.85)");
     drawBox(layout.subtitleBox, "副标题区", "rgba(167,139,250,0.85)");
     drawBox(layout.avatarBox, "头像区", "rgba(251,191,36,0.85)");
@@ -1554,6 +1579,7 @@ function renderCover(type, layoutKey, data, options = {}) {
 
   if (type === "talking-head") renderTalkingHead(ctx, layout, renderData);
   if (type === "weekly") renderWeekly(ctx, layout, renderData);
+  if (type === "article") renderWeekly(ctx, layout, renderData, { showWeekMarker: false });
   if (type === "tutorial") renderTutorial(ctx, layout, renderData);
   if (options.safeArea) drawSafeAreas(ctx, layout);
 
@@ -1789,9 +1815,9 @@ function updateOutputs() {
   els.titleSizeOutput.value = `${Math.round(state.titleSize)}%`;
   els.subtitleSizeOutput.value = `${Math.round(state.subtitleSize)}%`;
   els.weekField.hidden = state.type !== "weekly";
-  els.weeklyLibraryField.hidden = state.type !== "weekly";
+  els.weeklyLibraryField.hidden = state.type !== "weekly" && state.type !== "article";
   els.tutorialSeriesField.hidden = state.type !== "tutorial";
-  els.imageLabel.textContent = state.type === "tutorial" ? "教程截图（16:9）" : "参考图";
+  els.imageLabel.textContent = state.type === "tutorial" ? "教程截图（16:9）" : (state.type === "article" ? "文章配图" : "参考图");
   els.uploadText.textContent = state.type === "tutorial" && !state.imageName
     ? "上传 16:9 PNG / JPG / WEBP"
     : (state.imageName ? state.imageName : "上传 PNG / JPG / WEBP");
@@ -2090,9 +2116,10 @@ function renderWeeklyImageLibrary() {
 }
 
 function selectWeeklyDefaultImage() {
+  const targetType = state.type === "article" ? "article" : "weekly";
   state.weeklySelectedImageId = weeklyDefaultImageId;
   persistDraftState();
-  return loadImageFromSource(weeklyDefaultImageSrc, "默认周报贴纸", "weekly").then(() => {
+  return loadImageFromSource(weeklyDefaultImageSrc, "默认封面贴纸", targetType).then(() => {
     renderWeeklyImageLibrary();
   });
 }
@@ -2105,11 +2132,12 @@ function selectWeeklyLibraryImage(id) {
 
   const item = state.weeklyImageLibrary.find((entry) => entry.id === id);
   if (!item) return;
+  const targetType = state.type === "article" ? "article" : "weekly";
 
   loadImageFromBlob(item.blob)
     .then((image) => {
       state.weeklySelectedImageId = id;
-      setCurrentImage(image, item.name || "周报图", "weekly");
+      setCurrentImage(image, item.name || "封面图", targetType);
       setMessage("");
       persistDraftState();
       renderWeeklyImageLibrary();
@@ -2119,6 +2147,7 @@ function selectWeeklyLibraryImage(id) {
 }
 
 function saveWeeklyImageFile(file) {
+  const targetType = state.type === "article" ? "article" : "weekly";
   const id = `weekly-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const record = {
     id,
@@ -2136,7 +2165,7 @@ function saveWeeklyImageFile(file) {
         ...state.weeklyImageLibrary.filter((entry) => entry.id !== id),
       ];
       state.weeklySelectedImageId = id;
-      setCurrentImage(image, record.name, "weekly");
+      setCurrentImage(image, record.name, targetType);
       setMessage("");
       persistDraftState();
       renderWeeklyImageLibrary();
@@ -2169,8 +2198,9 @@ function syncImageForType() {
   els.uploadText.textContent = state.imageName || "上传 PNG / JPG / WEBP";
 }
 
-function ensureWeeklyImage() {
-  const weeklyImage = state.imagesByType.weekly;
+function ensureWeeklyImage(type = state.type) {
+  const targetType = type === "article" ? "article" : "weekly";
+  const weeklyImage = state.imagesByType[targetType];
   if (weeklyImage.image) {
     syncImageForType();
     renderAll();
@@ -2192,7 +2222,7 @@ function ensureWeeklyImage() {
   }
   state.image = null;
   state.imageName = "";
-  els.uploadText.textContent = "正在加载周报贴纸...";
+  els.uploadText.textContent = state.type === "article" ? "正在加载文章封面贴纸..." : "正在加载周报贴纸...";
   renderAll();
   selectWeeklyDefaultImage().catch(() => {
     setMessage("图片加载失败，请重新上传");
@@ -2227,7 +2257,7 @@ function loadImageFile(file) {
     return;
   }
 
-  if (state.type === "weekly") {
+  if (state.type === "weekly" || state.type === "article") {
     saveWeeklyImageFile(file);
     return;
   }
@@ -2519,8 +2549,8 @@ async function initializeApp() {
     loadDraftImages(),
   ]);
   syncImageForType();
-  if (state.type === "weekly") {
-    ensureWeeklyImage();
+  if (state.type === "weekly" || state.type === "article") {
+    ensureWeeklyImage(state.type);
   } else {
     renderAll();
   }
