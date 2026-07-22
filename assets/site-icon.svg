@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="视频封面生成器">
+  <defs>
+    <linearGradient id="bg" x1="72" y1="64" x2="440" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2dd4bf"/>
+      <stop offset="0.58" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="116" y1="136" x2="396" y2="376" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#08090d"/>
+  <rect x="48" y="48" width="416" height="416" rx="92" fill="url(#bg)"/>
+  <rect x="96" y="128" width="320" height="216" rx="34" fill="#07111f" opacity="0.72"/>
+  <rect x="122" y="154" width="268" height="164" rx="22" fill="url(#panel)"/>
+  <path d="M194 205v62c0 12 13 19 23 13l55-31c11-6 11-21 0-27l-55-31c-10-6-23 1-23 14Z" fill="#0f172a"/>
+  <rect x="118" y="368" width="88" height="24" rx="12" fill="#ecfeff" opacity="0.95"/>
+  <rect x="224" y="368" width="72" height="24" rx="12" fill="#ecfeff" opacity="0.82"/>
+  <rect x="314" y="368" width="80" height="24" rx="12" fill="#ecfeff" opacity="0.68"/>
+</svg>

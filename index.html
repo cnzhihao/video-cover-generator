@@ -4,6 +4,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>视频封面生成器</title>
+    <meta name="description" content="为口播、周报、系列教程和长文章快速生成 16:9、4:3、3:4、2.35:1、5:2 多比例封面。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://video-cover-generator.fhxqtech.com/" />
+    <meta property="og:title" content="视频封面生成器" />
+    <meta property="og:description" content="一次生成五种比例的封面，支持口播、周报、系列教程和长文章。" />
+    <meta property="og:image" content="https://video-cover-generator.fhxqtech.com/assets/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="视频封面生成器" />
+    <meta name="twitter:description" content="一次生成五种比例的封面，支持口播、周报、系列教程和长文章。" />
+    <meta name="twitter:image" content="https://video-cover-generator.fhxqtech.com/assets/og-image.png" />
+    <link rel="canonical" href="https://video-cover-generator.fhxqtech.com/" />
+    <link rel="icon" href="assets/site-icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="assets/favicon-16.png" sizes="16x16" type="image/png" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -12,21 +29,22 @@
         <div class="brand">
           <span class="brand-mark"></span>
           <div>
-            <h1>视频封面生成器</h1>
-            <p>16:9 / 4:3 / 3:4 多比例封面</p>
+            <h1>内容封面生成器</h1>
+            <p>16:9 / 4:3 / 3:4 / 2.35:1 / 5:2 多比例封面</p>
           </div>
         </div>
         <div class="type-switch" role="radiogroup" aria-label="视频类型">
           <button class="type-button is-active" data-type="talking-head" type="button">口播</button>
           <button class="type-button" data-type="weekly" type="button">周报</button>
           <button class="type-button" data-type="tutorial" type="button">系列教程</button>
+          <button class="type-button" data-type="article" type="button">图文</button>
         </div>
       </header>
 
       <main class="workspace">
         <aside class="panel form-panel">
           <section class="field-group">
-            <label class="field-label" for="imageInput">参考图</label>
+            <label id="imageLabel" class="field-label" for="imageInput">参考图</label>
             <label class="upload-box" for="imageInput">
               <input id="imageInput" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" />
               <span class="upload-icon">+</span>
@@ -69,6 +87,27 @@
             <input id="weekInput" maxlength="20" type="text" value="2026-06-W3" placeholder="2026-06-W3" />
           </section>
 
+          <section class="field-group tutorial-series-field" id="tutorialSeriesField" hidden>
+            <div class="series-heading-row">
+              <div class="field-label">系列进度</div>
+              <label class="toggle-control" for="showSeriesProgressInput">
+                <input id="showSeriesProgressInput" type="checkbox" checked />
+                <span aria-hidden="true"></span>
+                <b>展示</b>
+              </label>
+            </div>
+            <div class="series-number-grid">
+              <label>当前集数<input id="lessonNumberInput" type="number" min="1" max="99" value="3" /></label>
+              <label>总集数<input id="lessonTotalInput" type="number" min="1" max="99" value="6" /></label>
+            </div>
+            <div class="series-steps-heading">系列步骤</div>
+            <div class="series-step-inputs">
+              <label><span>01</span><input id="lessonStep1Input" maxlength="24" type="text" value="需求拆解" /></label>
+              <label><span>02</span><input id="lessonStep2Input" maxlength="24" type="text" value="搭建工作流" /></label>
+              <label><span>03</span><input id="lessonStep3Input" maxlength="24" type="text" value="上线与复盘" /></label>
+            </div>
+          </section>
+
           <section class="field-group controls">
             <div class="adjust-head">
               <span>图片调整</span>
@@ -78,6 +117,8 @@
               <button class="adjust-layout-button is-active" data-layout="16x9" type="button">16:9</button>
               <button class="adjust-layout-button" data-layout="4x3" type="button">4:3</button>
               <button class="adjust-layout-button" data-layout="3x4" type="button">3:4</button>
+              <button class="adjust-layout-button" data-layout="21x9" type="button">2.35:1</button>
+              <button class="adjust-layout-button" data-layout="5x2" type="button">5:2</button>
             </div>
 
             <div class="control-row">
@@ -108,25 +149,36 @@
         <section class="editor-panel">
           <div class="editor-head">
             <div>
-              <h2>当前主画布</h2>
+              <h2 id="canvasTitle">当前主画布</h2>
               <p id="activeLayoutLabel">16:9 · 1440 × 810</p>
             </div>
-            <div class="layout-tabs" role="tablist" aria-label="当前画布比例">
+            <div class="output-tabs" role="tablist" aria-label="输出模式">
+              <button class="output-tab is-active" data-output-mode="cover" type="button">封面图</button>
+              <button class="output-tab" data-output-mode="og-video" type="button">OG Video</button>
+            </div>
+            <div id="coverLayoutTabs" class="layout-tabs" role="tablist" aria-label="当前画布比例">
               <button class="layout-tab is-active" data-layout="16x9" type="button">16:9</button>
               <button class="layout-tab" data-layout="4x3" type="button">4:3</button>
               <button class="layout-tab" data-layout="3x4" type="button">3:4</button>
+              <button class="layout-tab" data-layout="21x9" type="button">2.35:1</button>
+              <button class="layout-tab" data-layout="5x2" type="button">5:2</button>
             </div>
           </div>
           <div class="canvas-stage">
             <canvas id="mainCanvas" width="1440" height="810"></canvas>
+            <div id="videoControls" class="video-controls" hidden>
+              <button id="toggleVideoPreviewButton" class="icon-button" type="button" aria-label="暂停动画" title="暂停动画">||</button>
+              <button id="restartVideoPreviewButton" class="icon-button" type="button" aria-label="重新播放动画" title="重新播放动画">↻</button>
+            </div>
             <div id="emptyState" class="empty-state">
               <strong>上传参考图后开始生成</strong>
-              <span>标题、位置和缩放会实时更新到三种比例</span>
+              <span>标题、位置和缩放会实时更新到五种比例</span>
             </div>
           </div>
         </section>
 
         <aside class="panel preview-panel">
+          <div id="coverPreviewList" class="cover-preview-list">
           <div class="preview-card is-active" data-layout="16x9">
             <div class="preview-meta">
               <strong>16:9</strong>
@@ -148,14 +200,44 @@
             </div>
             <canvas id="preview3x4" width="1080" height="1440"></canvas>
           </div>
+          <div class="preview-card" data-layout="21x9">
+            <div class="preview-meta">
+              <strong>2.35:1</strong>
+              <span>1880 × 800</span>
+            </div>
+            <canvas id="preview21x9" width="1880" height="800"></canvas>
+          </div>
+          <div class="preview-card" data-layout="5x2">
+            <div class="preview-meta">
+              <strong>5:2</strong>
+              <span>2000 × 800</span>
+            </div>
+            <canvas id="preview5x2" width="2000" height="800"></canvas>
+          </div>
+          </div>
+          <section id="ogVideoPanel" class="og-video-panel" hidden aria-label="OG Video 输出设置">
+            <div class="video-panel-heading">
+              <span>OG Video</span>
+              <strong id="videoFormatStatus">MP4</strong>
+            </div>
+            <div class="video-spec-grid">
+              <div><span>比例</span><strong>16:9</strong></div>
+              <div><span>时长</span><strong>3.6 秒</strong></div>
+              <div><span>帧率</span><strong>30 FPS</strong></div>
+            </div>
+            <p id="videoFormatMessage" class="video-format-message">浏览器将优先导出 MP4。</p>
+            <button id="downloadOgVideoButton" class="primary-button video-export-button" type="button" disabled>导出 OG Video MP4</button>
+          </section>
         </aside>
       </main>
 
       <footer class="export-bar">
         <button id="downloadCombinedButton" class="primary-button" type="button" disabled>导出拼接长图</button>
-        <button id="download16x9Button" class="secondary-button" type="button" disabled>下载 16:9</button>
-        <button id="download4x3Button" class="secondary-button" type="button" disabled>下载 4:3</button>
-        <button id="download3x4Button" class="secondary-button" type="button" disabled>下载 3:4</button>
+        <button id="download16x9Button" class="secondary-button" data-layout="16x9" type="button" disabled>下载 16:9</button>
+        <button id="download4x3Button" class="secondary-button" data-layout="4x3" type="button" disabled>下载 4:3</button>
+        <button id="download3x4Button" class="secondary-button" data-layout="3x4" type="button" disabled>下载 3:4</button>
+        <button id="download21x9Button" class="secondary-button" data-layout="21x9" type="button" disabled>下载 2.35:1</button>
+        <button id="download5x2Button" class="secondary-button" data-layout="5x2" type="button" disabled>下载 5:2</button>
       </footer>
     </div>
 
